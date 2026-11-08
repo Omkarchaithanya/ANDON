@@ -8,7 +8,11 @@
     "dev": "npm --prefix static/frontend run dev",
     "build": "cd static/frontend && npm run build",
     "test": "jest --config jest.config.js",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "ci": "node scripts/check-node.js && npm run lint && npm run test && node scripts/secret-scan.js"
+  },
+  "engines": {
+    "node": ">=22.23.4"
   },
   "dependencies": {
     "@forge/api": "^4.0.0",

@@ -67,3 +67,4 @@ The palette is derived from drafting paper, technical ink, and industrial signal
 
 - **Full Page / Wide Workspace (> 800px):** Dual-sheet side-by-side redline, full floor-plan schematic, horizontal leader lines.
 - **Jira Issue Panel (~ 400px):** Sheets stack vertically, floor plan collapses to an industrial zone chip, and the vertical Andon stack collapses into a persistent top signal bar.
+

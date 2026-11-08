@@ -1,6 +1,7 @@
 app:
   id: ari:cloud:ecosystem::app/andon-shadow-radar
-  name: ANDON Shadow Radar
+  runtime:
+    name: nodejs22.x
   description: >
     Shadow-change radar for robotized workplaces.
     Discovers when facilities maintenance requests might affect robot deployments
@@ -52,13 +53,6 @@ permissions:
     - read:confluence-space.summary
     - read:confluence-user
     - read:teamwork-graph
-
-  external:
-    fetch:
-      backend:
-        - https://api.atlassian.com/ex/jira/
-        - https://api.atlassian.com/ex/confluence/
-        - https://api.atlassian.com/gateway/api/teamwork-graph/
 
 resources:
   - key: frontend
