@@ -1,0 +1,1356 @@
+/* ==========================================================================
+   ANDON Industrial Visual Language — Drafting Table & Factory Signal Tower
+   Conforming to ANSI/ISO Technical Drawing and Atlassian Design System
+   ========================================================================== */
+
+:root {
+  /* Blueprint & Drafting Foundations */
+  --andon-ground: #f8f7f4;
+  --andon-surface: #ffffff;
+  --andon-surface-sunken: #f0ede6;
+  --andon-border: #dcd6ca;
+  --andon-border-bold: #b3a998;
+
+  --andon-ink: #1c2128;
+  --andon-ink-subtle: #57606a;
+  --andon-ink-muted: #8c959f;
+  --andon-ink-inverse: #ffffff;
+
+  /* Andon Signal Lamp Colors */
+  --andon-signal-amber: #d97706;
+  --andon-signal-amber-light: #fef3c7;
+  --andon-signal-amber-glow: rgba(217, 119, 6, 0.25);
+
+  --andon-signal-red: #dc2626;
+  --andon-signal-red-light: #fee2e2;
+  --andon-signal-red-glow: rgba(220, 38, 38, 0.25);
+
+  --andon-signal-green: #16a34a;
+  --andon-signal-green-light: #dcfce7;
+  --andon-signal-green-glow: rgba(22, 163, 74, 0.25);
+
+  /* Hatch Pattern */
+  --andon-hatch-stripe: rgba(140, 149, 159, 0.18);
+
+  /* Typography */
+  --font-display: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'SFMono-Medium', 'JetBrains Mono', 'Roboto Mono', Menlo, Consolas, monospace;
+
+  /* Drafting Radius */
+  --radius-sharp: 2px;
+  --radius-card: 4px;
+  --radius-pill: 9999px;
+
+  /* Shadows */
+  --shadow-sheet: 0 1px 3px rgba(0, 0, 0, 0.08), 0 0 1px rgba(0, 0, 0, 0.2);
+  --shadow-stamp: 0 2px 8px rgba(0, 0, 0, 0.12);
+  --shadow-modal: 0 12px 32px rgba(0, 0, 0, 0.25);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --andon-ground: #0d1117;
+    --andon-surface: #161b22;
+    --andon-surface-sunken: #090d13;
+    --andon-border: #30363d;
+    --andon-border-bold: #6e7681;
+
+    --andon-ink: #f0f6fc;
+    --andon-ink-subtle: #8b949e;
+    --andon-ink-muted: #484f58;
+    --andon-ink-inverse: #0d1117;
+
+    --andon-signal-amber-light: rgba(217, 119, 6, 0.15);
+    --andon-signal-red-light: rgba(220, 38, 38, 0.15);
+    --andon-signal-green-light: rgba(22, 163, 74, 0.15);
+    --andon-hatch-stripe: rgba(110, 118, 129, 0.2);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-display);
+  color: var(--andon-ink);
+  background-color: var(--andon-ground);
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  background-image: 
+    linear-gradient(to right, var(--andon-border) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--andon-border) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+code, pre, .mono {
+  font-family: var(--font-mono);
+}
+
+/* ==========================================================================
+   Root Layout & Dev Harness
+   ========================================================================== */
+
+.andon-app-root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.dev-harness-bar {
+  background: #fffbeb;
+  border-bottom: 2px solid var(--andon-signal-amber);
+  padding: 6px 20px;
+  font-size: 11px;
+  color: #92400e;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: var(--font-mono);
+}
+
+.dev-harness-tag {
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+/* ==========================================================================
+   Top Header Title Block (Drawing Header)
+   ========================================================================== */
+
+.andon-title-block-header {
+  background: var(--andon-surface);
+  border-bottom: 2px solid var(--andon-ink);
+  padding: 12px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.title-block-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.drawing-box-id {
+  border: 1.5px solid var(--andon-ink);
+  padding: 4px 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--andon-surface-sunken);
+  color: var(--andon-ink);
+}
+
+.system-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.system-subtitle {
+  font-size: 11px;
+  color: var(--andon-ink-subtle);
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+}
+
+.title-block-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Stepper Navigation: Blueprint Drawing Index */
+.stepper-nav {
+  background: var(--andon-surface);
+  border-bottom: 1px solid var(--andon-border);
+  padding: 8px 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-family: var(--font-mono);
+}
+
+.step-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--andon-ink-subtle);
+  padding: 5px 10px;
+  border: 1px solid transparent;
+  user-select: none;
+  transition: all 0.15s ease;
+}
+
+.step-item.active {
+  background: var(--andon-surface-sunken);
+  border-color: var(--andon-ink);
+  color: var(--andon-ink);
+  font-weight: 700;
+}
+
+.step-item.completed {
+  color: var(--andon-ink);
+}
+
+.step-number {
+  border: 1px solid currentColor;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.step-arrow {
+  color: var(--andon-ink-muted);
+}
+
+/* ==========================================================================
+   Andon Signal Tower (Left Vertical or Top Compact)
+   ========================================================================== */
+
+.andon-tower {
+  background: var(--andon-surface);
+  border: 1.5px solid var(--andon-ink);
+  border-radius: var(--radius-sharp);
+  padding: 8px;
+  box-shadow: var(--shadow-sheet);
+}
+
+.tower-vertical {
+  width: 130px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tower-cap {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 800;
+  text-align: center;
+  letter-spacing: 0.8px;
+  padding: 3px;
+  border-bottom: 1px solid var(--andon-border);
+  color: var(--andon-ink-subtle);
+}
+
+.tower-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.andon-lamp-unit {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px;
+  border-radius: var(--radius-sharp);
+  border: 1px solid transparent;
+}
+
+.lamp-lens {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  border: 1.5px solid var(--andon-border-bold);
+  background: var(--andon-surface-sunken);
+  color: var(--andon-ink-muted);
+  transition: all 0.2s ease;
+}
+
+.lamp-lens.circle { border-radius: 50%; }
+.lamp-lens.diamond { transform: rotate(45deg); }
+.lamp-lens.diamond span { transform: rotate(-45deg); display: block; }
+.lamp-lens.hexagon { clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%); }
+
+.lamp-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.lamp-axis {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-weight: 700;
+  color: var(--andon-ink-muted);
+  letter-spacing: 0.5px;
+}
+
+.lamp-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--andon-ink);
+}
+
+/* Active Lamp States */
+.lamp-amber .lamp-lens {
+  background: var(--andon-signal-amber);
+  border-color: #b45309;
+  color: #fff;
+  box-shadow: 0 0 10px var(--andon-signal-amber-glow);
+}
+
+.lamp-red .lamp-lens {
+  background: var(--andon-signal-red);
+  border-color: #b91c1c;
+  color: #fff;
+  box-shadow: 0 0 10px var(--andon-signal-red-glow);
+}
+
+.lamp-green .lamp-lens {
+  background: var(--andon-signal-green);
+  border-color: #15803d;
+  color: #fff;
+  box-shadow: 0 0 10px var(--andon-signal-green-glow);
+}
+
+.lamp-unknown .lamp-lens {
+  background: repeating-linear-gradient(45deg, #e5e7eb, #e5e7eb 2px, #9ca3af 2px, #9ca3af 4px);
+  color: #4b5563;
+}
+
+/* ==========================================================================
+   Screen Layout with Tower & Drawing Table
+   ========================================================================== */
+
+.screen-layout-grid {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 20px;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+@media (max-width: 860px) {
+  .screen-layout-grid {
+    grid-template-columns: 1fr;
+  }
+  .tower-vertical {
+    width: 100%;
+    flex-direction: row;
+    justify-content: space-around;
+  }
+}
+
+.drawing-sheet-main {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Work Order Sheet */
+.work-order-sheet {
+  background: var(--andon-surface);
+  border: 1.5px solid var(--andon-ink);
+  box-shadow: var(--shadow-sheet);
+  padding: 20px 24px;
+  position: relative;
+}
+
+.sheet-header-meta {
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--andon-border);
+  padding-bottom: 8px;
+  margin-bottom: 14px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.work-summary-headline {
+  margin: 0 0 12px 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--andon-ink);
+}
+
+/* Callout Leader Row */
+.andon-callout-row {
+  margin: 14px 0;
+  padding: 12px 16px;
+  background: var(--andon-surface-sunken);
+  border-left: 4px solid var(--andon-signal-amber);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.callout-leader-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.callout-tag {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--andon-signal-amber);
+  letter-spacing: 0.5px;
+}
+
+.callout-text {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* Floor Plan Locator */
+.floorplan-container {
+  background: var(--andon-surface);
+  border: 1px solid var(--andon-border);
+  padding: 14px 18px;
+}
+
+.floorplan-header {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--andon-ink-subtle);
+  border-bottom: 1px solid var(--andon-border);
+  padding-bottom: 4px;
+  margin-bottom: 8px;
+}
+
+.floorplan-schematic {
+  width: 100%;
+  height: 120px;
+}
+
+.floorplan-svg {
+  width: 100%;
+  height: 100%;
+}
+
+.aisle-num {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  fill: var(--andon-ink-muted);
+}
+
+.active-zone-text {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  fill: var(--andon-signal-amber);
+}
+
+.floorplan-footer {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--andon-ink-muted);
+  margin-top: 6px;
+}
+
+/* ==========================================================================
+   Signature Component 3: The Redline Sheet
+   ========================================================================== */
+
+.redline-sheet-assembly {
+  background: var(--andon-surface);
+  border: 1.5px solid var(--andon-ink);
+  box-shadow: var(--shadow-sheet);
+}
+
+.assembly-title-bar {
+  background: var(--andon-surface-sunken);
+  border-bottom: 1px solid var(--andon-ink);
+  padding: 8px 16px;
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.dual-sheets-grid {
+  display: grid;
+  grid-template-columns: 1fr 40px 1fr;
+  padding: 16px;
+  gap: 0;
+}
+
+@media (max-width: 860px) {
+  .dual-sheets-grid {
+    grid-template-columns: 1fr;
+  }
+  .sheets-gutter {
+    display: none;
+  }
+}
+
+.drafting-sheet {
+  background: var(--andon-ground);
+  border: 1px solid var(--andon-border);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+.sheet-title-block {
+  border-bottom: 1px solid var(--andon-border-bold);
+  padding-bottom: 8px;
+  margin-bottom: 12px;
+}
+
+.block-row {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.block-row.sub {
+  font-size: 10px;
+  color: var(--andon-ink-subtle);
+  margin-top: 4px;
+}
+
+.verbatim-quote-box {
+  margin: 8px 0 12px 0;
+  padding: 10px 14px;
+  background: var(--andon-surface);
+  border-left: 3px solid var(--andon-ink);
+  font-style: normal;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.sheets-gutter {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.gutter-svg {
+  width: 100%;
+  height: 100%;
+}
+
+.gutter-divergence-tag {
+  position: absolute;
+  background: var(--andon-surface);
+  border: 1px solid var(--andon-signal-amber);
+  color: var(--andon-signal-amber);
+  padding: 2px 4px;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-weight: 800;
+  border-radius: var(--radius-sharp);
+}
+
+.redline-strike-container {
+  margin-top: 12px;
+  padding: 8px 12px;
+  background: var(--andon-surface);
+  border: 1px dashed var(--andon-border);
+}
+
+.strike-caption {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--andon-ink-subtle);
+  display: block;
+  margin-bottom: 4px;
+}
+
+.strike-pair {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.redline-deleted {
+  color: var(--andon-ink-muted);
+  text-decoration: line-through;
+}
+
+.redline-arrow {
+  color: var(--andon-signal-amber);
+}
+
+.redline-inserted {
+  color: var(--andon-signal-amber);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.sheet-footer {
+  margin-top: auto;
+  border-top: 1px solid var(--andon-border);
+  padding-top: 8px;
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--andon-ink-muted);
+}
+
+/* ==========================================================================
+   Signature Component 4: Evidence Thread (Graph Path)
+   ========================================================================== */
+
+.evidence-thread-card {
+  background: var(--andon-surface);
+  border: 1px solid var(--andon-border);
+  padding: 16px 20px;
+}
+
+.thread-title-bar {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--andon-ink-subtle);
+  margin-bottom: 14px;
+}
+
+.thread-nodes-list {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.thread-node-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--andon-surface-sunken);
+  border: 1px solid var(--andon-border);
+  border-radius: var(--radius-sharp);
+}
+
+.node-type-label {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-weight: 700;
+  color: var(--andon-ink-muted);
+  display: block;
+}
+
+.node-name {
+  font-size: 12px;
+  display: block;
+}
+
+.perm-chip {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 2px;
+}
+
+.chip-verified {
+  background: var(--andon-signal-green-light);
+  color: var(--andon-signal-green);
+}
+
+.chip-restricted {
+  background: var(--andon-signal-red-light);
+  color: var(--andon-signal-red);
+}
+
+.thread-hop-arrow {
+  color: var(--andon-ink-muted);
+  font-size: 12px;
+}
+
+/* ==========================================================================
+   Signature Component 5: Coverage Ruler
+   ========================================================================== */
+
+.coverage-ruler-container {
+  background: var(--andon-surface);
+  border: 1.5px solid var(--andon-ink);
+  padding: 20px;
+}
+
+.ruler-title-row {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  margin-bottom: 14px;
+}
+
+.ruler-scale {
+  position: relative;
+  margin: 16px 0 24px 0;
+}
+
+.ruler-ticks {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.ruler-tick-mark {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.tick-line {
+  width: 1px;
+  height: 8px;
+  background: var(--andon-ink-muted);
+}
+
+.tick-label {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  color: var(--andon-ink-muted);
+}
+
+.ruler-track {
+  display: flex;
+  height: 48px;
+  border: 1.5px solid var(--andon-ink);
+  background: var(--andon-surface-sunken);
+  position: relative;
+}
+
+.ruler-slot {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 6px 12px;
+  border-right: 1px solid var(--andon-ink);
+}
+
+.slot-declared {
+  background: var(--andon-signal-green-light);
+}
+
+.slot-gap {
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(220, 38, 38, 0.08),
+    rgba(220, 38, 38, 0.08) 6px,
+    rgba(220, 38, 38, 0.18) 6px,
+    rgba(220, 38, 38, 0.18) 12px
+  );
+  border-right: none;
+}
+
+.slot-badge {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+
+.val-slot {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--andon-signal-green);
+}
+
+.val-gap {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--andon-signal-red);
+}
+
+.ruler-finding-card {
+  background: var(--andon-signal-red-light);
+  border: 1px solid var(--andon-signal-red);
+  padding: 12px 16px;
+  display: flex;
+  gap: 12px;
+}
+
+.finding-glyph {
+  font-size: 20px;
+}
+
+.finding-headline {
+  font-size: 13px;
+  color: var(--andon-signal-red);
+  display: block;
+  margin-bottom: 2px;
+}
+
+.finding-text {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--andon-ink);
+}
+
+.finding-subtext {
+  font-size: 11px;
+  color: var(--andon-ink-subtle);
+  font-family: var(--font-mono);
+  display: block;
+  margin-top: 4px;
+}
+
+/* ==========================================================================
+   Signature Component 7: The Stamp Ceremony
+   ========================================================================== */
+
+.stamp-ceremony-card {
+  background: var(--andon-surface);
+  border: 1.5px solid var(--andon-ink);
+  padding: 20px 24px;
+}
+
+.stamp-card-header {
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--andon-border);
+  padding-bottom: 12px;
+  margin-bottom: 16px;
+}
+
+.drawing-sheet-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--andon-ink-subtle);
+}
+
+.stamp-title {
+  margin: 2px 0 4px 0;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.stamp-subtext {
+  margin: 0;
+  font-size: 12px;
+  color: var(--andon-ink-subtle);
+}
+
+.stamps-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+@media (max-width: 860px) {
+  .stamps-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.stamp-box {
+  border: 1.5px dashed var(--andon-border-bold);
+  padding: 16px;
+  background: var(--andon-ground);
+  cursor: pointer;
+  position: relative;
+  min-height: 140px;
+  transition: all 0.2s ease;
+}
+
+.stamp-box:hover {
+  border-color: var(--andon-ink);
+}
+
+.stamp-box.stamped {
+  border-style: solid;
+  border-color: var(--andon-ink);
+  background: var(--andon-surface);
+}
+
+.stamp-box-header {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  margin-bottom: 8px;
+}
+
+.rubber-stamp {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  border: 2px solid;
+  padding: 4px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transform: rotate(-6deg);
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  pointer-events: none;
+  animation: stampLand 0.25s ease-out;
+}
+
+@keyframes stampLand {
+  0% { transform: scale(1.4) rotate(15deg); opacity: 0; }
+  100% { transform: scale(1) rotate(-6deg); opacity: 1; }
+}
+
+.rubber-stamp.stamp-approved {
+  border-color: var(--andon-signal-green);
+  color: var(--andon-signal-green);
+}
+
+.rubber-stamp.stamp-rejected {
+  border-color: var(--andon-signal-red);
+  color: var(--andon-signal-red);
+}
+
+.rubber-stamp span {
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 1px;
+}
+
+.rubber-stamp small {
+  font-size: 8px;
+  font-weight: 700;
+}
+
+.rubber-stamp time {
+  font-size: 7px;
+  margin-top: 2px;
+}
+
+.stamp-actions-footer {
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px solid var(--andon-border);
+  padding-top: 16px;
+}
+
+/* ==========================================================================
+   Signature Component 8: Handoff Tag
+   ========================================================================== */
+
+.handoff-tag-card {
+  background: #fffdfa;
+  border: 2px solid var(--andon-ink);
+  position: relative;
+  box-shadow: var(--shadow-sheet);
+  padding: 24px;
+}
+
+.tag-rivet-hole {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--andon-ink);
+  border-radius: 50%;
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  background: var(--andon-surface-sunken);
+}
+
+.tag-inner {
+  margin-left: 16px;
+}
+
+.tag-header-row {
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--andon-border);
+  padding-bottom: 8px;
+  margin-bottom: 16px;
+}
+
+.tag-serial {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--andon-ink-muted);
+}
+
+.tag-title {
+  margin: 2px 0 0 0;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.action-state-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  background: var(--andon-surface-sunken);
+  padding: 3px 8px;
+  border: 1px solid var(--andon-border);
+}
+
+.state-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.dot-idle { background: var(--andon-ink-muted); }
+.dot-pending { background: var(--andon-signal-amber); animation: pulse 1s infinite alternate; }
+.dot-confirmed { background: var(--andon-signal-green); }
+.dot-outcome_uncertain { background: var(--andon-signal-red); }
+
+.disclosure-toggle-box {
+  background: var(--andon-surface-sunken);
+  border: 1px solid var(--andon-border);
+  padding: 10px 14px;
+  margin-bottom: 16px;
+}
+
+.toggle-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.toggle-sub {
+  margin: 2px 0 0 0;
+  font-size: 11px;
+  color: var(--andon-ink-subtle);
+}
+
+.tag-footer-actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 20px;
+}
+
+/* ==========================================================================
+   Signature Component 9: Hatched Unknown
+   ========================================================================== */
+
+.hatched-box {
+  background: var(--andon-surface);
+  border: 1.5px solid var(--andon-ink);
+  display: flex;
+  position: relative;
+  overflow: hidden;
+}
+
+.hatched-indicator {
+  width: 48px;
+  background: repeating-linear-gradient(
+    45deg,
+    var(--andon-hatch-stripe),
+    var(--andon-hatch-stripe) 6px,
+    transparent 6px,
+    transparent 12px
+  );
+  border-right: 1px solid var(--andon-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+
+.hatched-content {
+  padding: 14px 18px;
+  flex: 1;
+}
+
+.hatched-status-badge {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 800;
+  color: var(--andon-ink-subtle);
+  background: var(--andon-surface-sunken);
+  padding: 2px 6px;
+  display: inline-block;
+  margin-bottom: 4px;
+}
+
+.hatched-title {
+  display: block;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.hatched-reason {
+  margin: 0;
+  font-size: 12px;
+  color: var(--andon-ink-subtle);
+}
+
+.hatched-action {
+  margin-top: 8px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+}
+
+.action-tag {
+  font-weight: 800;
+  color: var(--andon-signal-amber);
+}
+
+/* ==========================================================================
+   Signature Component 10: Stale Ribbon
+   ========================================================================== */
+
+.stale-ribbon-banner {
+  background: var(--andon-signal-red-light);
+  border: 1.5px solid var(--andon-signal-red);
+  padding: 14px 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.stale-badge-corner {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 900;
+  color: var(--andon-signal-red);
+  letter-spacing: 0.5px;
+}
+
+/* ==========================================================================
+   Two Clock Timeline
+   ========================================================================== */
+
+.two-clock-container {
+  background: var(--andon-surface);
+  border: 1px solid var(--andon-border);
+  padding: 16px 20px;
+}
+
+.two-clock-header {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  border-bottom: 1px solid var(--andon-border);
+  padding-bottom: 6px;
+  margin-bottom: 12px;
+}
+
+.tracks-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.time-track {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.track-label-col {
+  width: 140px;
+}
+
+.track-name {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  display: block;
+}
+
+.track-desc {
+  font-size: 9px;
+  color: var(--andon-ink-muted);
+}
+
+.track-rail {
+  flex: 1;
+  height: 2px;
+  background: var(--andon-ink);
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.rail-dashed {
+  background: repeating-linear-gradient(to right, var(--andon-ink) 0, var(--andon-ink) 6px, transparent 6px, transparent 12px);
+}
+
+.event-node {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.node-effective { left: 45%; }
+.node-learned { left: 15%; }
+
+.node-marker {
+  font-size: 12px;
+  color: var(--andon-ink);
+}
+
+.node-tooltip {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  background: var(--andon-surface);
+  border: 1px solid var(--andon-ink);
+  padding: 2px 6px;
+}
+
+/* Buttons */
+.btn {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 8px 16px;
+  border-radius: var(--radius-sharp);
+  border: 1.5px solid var(--andon-ink);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--andon-ink);
+  color: var(--andon-surface);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #333d47;
+}
+
+.btn-secondary {
+  background: var(--andon-surface);
+  color: var(--andon-ink);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--andon-surface-sunken);
+}
+
+.btn-subtle {
+  background: transparent;
+  border-color: transparent;
+  color: var(--andon-ink-subtle);
+}
+
+.btn-subtle:hover:not(:disabled) {
+  background: var(--andon-surface-sunken);
+  color: var(--andon-ink);
+}
+
+.btn-danger {
+  background: var(--andon-signal-red);
+  color: #fff;
+  border-color: #b91c1c;
+}
+
+.btn-sm {
+  padding: 4px 10px;
+  font-size: 11px;
+}
+
+.form-group {
+  margin-bottom: 14px;
+}
+
+.form-label {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.form-input, .form-textarea {
+  width: 100%;
+  padding: 8px 10px;
+  font-size: 12px;
+  border: 1.5px solid var(--andon-border-bold);
+  background: var(--andon-surface);
+  color: var(--andon-ink);
+  border-radius: var(--radius-sharp);
+}
+
+.form-input:focus, .form-textarea:focus {
+  outline: none;
+  border-color: var(--andon-ink);
+}
+
+.form-help {
+  font-size: 10px;
+  color: var(--andon-ink-muted);
+  font-family: var(--font-mono);
+  display: block;
+  margin-top: 2px;
+}
+
+/* Modals */
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(13, 17, 23, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+}
+
+.modal-content {
+  background: var(--andon-surface);
+  border: 2px solid var(--andon-ink);
+  width: 90%;
+  max-width: 520px;
+  box-shadow: var(--shadow-modal);
+}
+
+.modal-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--andon-border);
+}
+
+.modal-body {
+  padding: 16px 20px;
+}
+
+.modal-footer {
+  padding: 12px 20px;
+  border-top: 1px solid var(--andon-border);
+  background: var(--andon-surface-sunken);
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+/* Empty State Card */
+.empty-state-card {
+  background: var(--andon-surface);
+  border: 1.5px dashed var(--andon-border-bold);
+  padding: 36px 24px;
+  text-align: center;
+}

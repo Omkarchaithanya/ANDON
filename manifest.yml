@@ -1,0 +1,67 @@
+app:
+  id: ari:cloud:ecosystem::app/andon-shadow-radar
+  name: ANDON Shadow Radar
+  description: >
+    Shadow-change radar for robotized workplaces.
+    Discovers when facilities maintenance requests might affect robot deployments
+    whose commissioning assumed different environmental conditions.
+
+modules:
+  jira:issuePanel:
+    - key: andon-panel
+      title: ANDON Shadow Radar
+      resource: frontend
+      resolver:
+        function: resolver
+      icon: https://developer.atlassian.com/platform/forge/images/icons/issue-panel-icon.svg
+
+  function:
+    - key: resolver
+      handler: index.handler
+    - key: jira-event-handler
+      handler: index.onJiraEvent
+    - key: confluence-event-handler
+      handler: index.onConfluenceEvent
+
+  trigger:
+    - key: jira-issue-created
+      function: jira-event-handler
+      events:
+        - avi:jira:created:issue
+    - key: jira-issue-updated
+      function: jira-event-handler
+      events:
+        - avi:jira:updated:issue
+    - key: confluence-page-updated
+      function: confluence-event-handler
+      events:
+        - avi:confluence:updated:page
+
+  consumer:
+    - key: andon-event-consumer
+      queue: andon-events
+      resolver:
+        function: resolver
+        method: processQueueEvent
+
+permissions:
+  scopes:
+    - read:jira-work
+    - write:jira-work
+    - read:confluence-content.all
+    - read:confluence-space.summary
+    - read:confluence-user
+    - read:teamwork-graph
+
+  external:
+    fetch:
+      backend:
+        - https://api.atlassian.com/ex/jira/
+        - https://api.atlassian.com/ex/confluence/
+        - https://api.atlassian.com/gateway/api/teamwork-graph/
+
+resources:
+  - key: frontend
+    path: static/frontend/build
+  - key: schema
+    path: src/db/schema.sql
