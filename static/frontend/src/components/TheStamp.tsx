@@ -210,3 +210,4 @@ export const TheStamp: React.FC<TheStampProps> = ({
     </div>
   );
 };
+

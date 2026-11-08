@@ -82,3 +82,4 @@ export const CoverageRuler: React.FC<CoverageRulerProps> = ({
     </div>
   );
 };
+

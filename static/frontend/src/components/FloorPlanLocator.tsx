@@ -62,9 +62,15 @@ export const FloorPlanLocator: React.FC<FloorPlanLocatorProps> = ({
                 {zoneName}
               </text>
 
+              {/* Animated Sonar Radar Ping */}
+              <circle cx="165" cy="72" r="14" fill="none" stroke="var(--andon-signal-amber)" strokeWidth="1.2" opacity="0.8">
+                <animate attributeName="r" values="10;26;10" dur="2.4s" repeatCount="indefinite" />
+                <animate attributeName="opacity" values="0.9;0;0.9" dur="2.4s" repeatCount="indefinite" />
+              </circle>
+
               {/* Pinned Robot Deployment AMR-12 */}
-              <circle cx="165" cy="72" r="10" fill="var(--andon-ink)" stroke="var(--andon-surface)" strokeWidth="2" />
-              <text x="165" y="75" textAnchor="middle" fill="#fff" fontSize="8" fontWeight="700">R</text>
+              <circle cx="165" cy="72" r="10" fill="var(--andon-ink)" stroke="var(--andon-signal-amber)" strokeWidth="2" />
+              <text x="165" y="75" textAnchor="middle" fill="var(--andon-surface)" fontSize="8" fontWeight="800">R</text>
 
               {/* Pin Callout Marker */}
               <line x1="165" y1="84" x2="165" y2="102" stroke="var(--andon-ink)" strokeWidth="1" />
@@ -103,3 +109,4 @@ export const FloorPlanLocator: React.FC<FloorPlanLocatorProps> = ({
     </div>
   );
 };
+

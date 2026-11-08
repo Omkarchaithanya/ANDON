@@ -13,8 +13,20 @@ export function App() {
   const [selectedCandidateId, setSelectedCandidateId] = useState<string>('demo-intent-aisle7');
   const [selectedReviewDecisionId, setSelectedReviewDecisionId] = useState<string>('demo-rev-001');
   const [showGallery, setShowGallery] = useState<boolean>(false);
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('andon_theme');
+      if (saved === 'light' || saved === 'dark') return saved;
+    }
+    return 'dark'; // Modern cyber-industrial default
+  });
 
-  // Keyboard shortcut listener: Enter to inspect, S to stamp
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('andon_theme', theme);
+  }, [theme]);
+
+  // Keyboard shortcut listener: 1, 2, 3 to navigate; T for theme; G for gallery
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
@@ -23,6 +35,8 @@ export function App() {
       if (e.key === '1') setCurrentScreen(Screen.CHANGE_LENS);
       if (e.key === '2') setCurrentScreen(Screen.EVIDENCE_REDLINE);
       if (e.key === '3') setCurrentScreen(Screen.REVIEW_PACKAGE);
+      if (e.key === 't' || e.key === 'T') setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
+      if (e.key === 'g' || e.key === 'G') setShowGallery((prev) => !prev);
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
@@ -98,10 +112,19 @@ export function App() {
             </div>
           </div>
 
-          <div className="title-block-right">
+          <div className="title-block-right" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={() => setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))}
+              title="Toggle Theme Mode (Shortcut: T)"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+            >
+              <span>{theme === 'dark' ? '☀️' : '🌙'}</span>
+              <span>{theme === 'dark' ? 'Daylight Drafting' : 'Mission Control'}</span>
+            </button>
             <div className="mono" style={{ fontSize: '10px', color: 'var(--andon-ink-muted)', textAlign: 'right' }}>
               <div>AUTHORITY: QUALIFIED REVIEWER ONLY</div>
-              <div>SHORTCUTS: [1] LENS &nbsp;[2] REDLINE &nbsp;[3] REVIEW</div>
+              <div>SHORTCUTS: [1] LENS &nbsp;[2] REDLINE &nbsp;[3] REVIEW &nbsp;[T] THEME</div>
             </div>
           </div>
         </header>
@@ -187,6 +210,67 @@ export function App() {
             )}
           </main>
         </div>
+
+        {/* Floating Modern Command HUD */}
+        <aside className="floating-command-hud" role="toolbar" aria-label="Command Bar">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingRight: '12px', borderRight: '1px solid var(--andon-border)' }}>
+            <span style={{
+              width: '8px',
+              height: '8px',
+              borderRadius: '50%',
+              background: 'var(--andon-signal-green)',
+              boxShadow: '0 0 8px var(--andon-signal-green)',
+              display: 'inline-block'
+            }} />
+            <span className="mono" style={{ fontSize: '11px', fontWeight: 800, letterSpacing: '0.5px' }}>
+              ANDON RADAR
+            </span>
+          </div>
+
+          <div
+            className={`hud-shortcut-item ${currentScreen === Screen.CHANGE_LENS ? 'active' : ''}`}
+            onClick={handleBackToChangeLens}
+          >
+            <span className="hud-kbd">1</span>
+            <span>Intake Lens</span>
+          </div>
+
+          <div
+            className={`hud-shortcut-item ${currentScreen === Screen.EVIDENCE_REDLINE ? 'active' : ''}`}
+            onClick={() => setCurrentScreen(Screen.EVIDENCE_REDLINE)}
+          >
+            <span className="hud-kbd">2</span>
+            <span>Redline</span>
+          </div>
+
+          <div
+            className={`hud-shortcut-item ${currentScreen === Screen.REVIEW_PACKAGE ? 'active' : ''}`}
+            onClick={() => setCurrentScreen(Screen.REVIEW_PACKAGE)}
+          >
+            <span className="hud-kbd">3</span>
+            <span>Dispatch</span>
+          </div>
+
+          <div style={{ width: '1px', height: '16px', background: 'var(--andon-border)' }} />
+
+          <div
+            className="hud-shortcut-item"
+            onClick={() => setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))}
+            title="Toggle Daylight / Dark Mission Control Mode (T)"
+          >
+            <span className="hud-kbd">T</span>
+            <span>{theme === 'dark' ? '☀️ Daylight' : '🌙 Dark'}</span>
+          </div>
+
+          <div
+            className="hud-shortcut-item"
+            onClick={() => setShowGallery((prev) => !prev)}
+            title="Toggle States Gallery (G)"
+          >
+            <span className="hud-kbd">G</span>
+            <span>{showGallery ? '✕ Hide Gallery' : '🔍 8 States'}</span>
+          </div>
+        </aside>
       </div>
     </ErrorBoundary>
   );

@@ -47,9 +47,34 @@ export const HandoffTag: React.FC<HandoffTagProps> = ({
             <span className="tag-serial">TAG NO: HD-2026-ENG</span>
             <h3 className="tag-title">Engineering Follow-Up Work Tag</h3>
           </div>
-          <div className="action-state-pill">
-            <span className={`state-dot dot-${actionState.toLowerCase()}`} />
-            <span className="state-label">STATE: {actionState}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <svg viewBox="0 0 100 24" width="90" height="22" aria-hidden="true" style={{ opacity: 0.8 }}>
+              <rect x="0" y="0" width="3" height="24" fill="currentColor" />
+              <rect x="5" y="0" width="1" height="24" fill="currentColor" />
+              <rect x="8" y="0" width="4" height="24" fill="currentColor" />
+              <rect x="14" y="0" width="2" height="24" fill="currentColor" />
+              <rect x="18" y="0" width="5" height="24" fill="currentColor" />
+              <rect x="25" y="0" width="1" height="24" fill="currentColor" />
+              <rect x="28" y="0" width="3" height="24" fill="currentColor" />
+              <rect x="33" y="0" width="2" height="24" fill="currentColor" />
+              <rect x="37" y="0" width="4" height="24" fill="currentColor" />
+              <rect x="43" y="0" width="1" height="24" fill="currentColor" />
+              <rect x="46" y="0" width="6" height="24" fill="currentColor" />
+              <rect x="54" y="0" width="2" height="24" fill="currentColor" />
+              <rect x="58" y="0" width="3" height="24" fill="currentColor" />
+              <rect x="63" y="0" width="1" height="24" fill="currentColor" />
+              <rect x="66" y="0" width="5" height="24" fill="currentColor" />
+              <rect x="73" y="0" width="2" height="24" fill="currentColor" />
+              <rect x="77" y="0" width="3" height="24" fill="currentColor" />
+              <rect x="82" y="0" width="4" height="24" fill="currentColor" />
+              <rect x="88" y="0" width="1" height="24" fill="currentColor" />
+              <rect x="91" y="0" width="3" height="24" fill="currentColor" />
+              <rect x="96" y="0" width="4" height="24" fill="currentColor" />
+            </svg>
+            <div className="action-state-pill">
+              <span className={`state-dot dot-${actionState.toLowerCase()}`} />
+              <span className="state-label">STATE: {actionState}</span>
+            </div>
           </div>
         </div>
 
@@ -162,3 +187,4 @@ export const HandoffTag: React.FC<HandoffTagProps> = ({
     </div>
   );
 };
+

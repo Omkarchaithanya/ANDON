@@ -95,3 +95,4 @@ export const AndonLightStack: React.FC<AndonLightStackProps> = ({
     </aside>
   );
 };
+
