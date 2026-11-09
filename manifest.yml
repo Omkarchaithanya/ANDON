@@ -16,15 +16,35 @@ modules:
         function: resolver
       icon: https://developer.atlassian.com/platform/forge/images/icons/issue-panel-icon.svg
 
+  sql:
+    - key: main
+
+  llm:
+    - key: andon-extractor
+      model:
+        - claude-3-5-sonnet
+
   function:
     - key: resolver
       handler: index.handler
+    - key: consumer-handler
+      handler: index.processQueueEvent
+    - key: install-handler
+      handler: index.onInstallOrUpgrade
     - key: jira-event-handler
       handler: index.onJiraEvent
     - key: confluence-event-handler
       handler: index.onConfluenceEvent
 
   trigger:
+    - key: app-installed-trigger
+      function: install-handler
+      events:
+        - avi:forge:installed:app
+    - key: app-upgraded-trigger
+      function: install-handler
+      events:
+        - avi:forge:upgraded:app
     - key: jira-issue-created
       function: jira-event-handler
       events:
@@ -41,9 +61,7 @@ modules:
   consumer:
     - key: andon-event-consumer
       queue: andon-events
-      resolver:
-        function: resolver
-        method: processQueueEvent
+      function: consumer-handler
 
 permissions:
   scopes:
@@ -52,10 +70,9 @@ permissions:
     - read:confluence-content.all
     - read:confluence-space.summary
     - read:confluence-user
-    - read:teamwork-graph
+    - read:graph:page:confluence
+    - read:graph:user:atlassian
 
 resources:
   - key: frontend
     path: static/frontend/build
-  - key: schema
-    path: src/db/schema.sql

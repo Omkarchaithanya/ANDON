@@ -1,52 +1,49 @@
 /**
  * @module migrations
- * @description Schema migration runner applying Forge SQL DDL statements sequentially.
+ * @description Schema migration runner applying Forge SQL DDL statements.
+ * Uses official Forge SQL migrationRunner without runtime fs.readFileSync.
  */
 
-import { sql } from '@forge/sql';
-import * as fs from 'fs';
-import * as path from 'path';
+import { sql, migrationRunner } from '@forge/sql';
+import { DDL_STATEMENTS, SCHEMA_VERSION } from './schema';
 
 /**
- * Applies database DDL statements one by one.
+ * Applies database DDL statements sequentially to Forge SQL (MySQL/TiDB backend).
  */
 export async function runMigrations(): Promise<{ success: boolean; appliedCount: number; errors: string[] }> {
-  const schemaPath = path.resolve(__dirname, 'schema.sql');
-  let ddlContent = '';
-
-  try {
-    ddlContent = fs.readFileSync(schemaPath, 'utf8');
-  } catch (err: any) {
-    return {
-      success: false,
-      appliedCount: 0,
-      errors: [`Failed to read schema.sql: ${err.message}`],
-    };
-  }
-
-  // Split on semicolons, ignoring comments and whitespace
-  const rawStatements = ddlContent
-    .split(';')
-    .map(stmt => stmt.trim())
-    .filter(stmt => {
-      if (!stmt) return false;
-      const stripped = stmt.replace(/--.*$/gm, '').trim();
-      return stripped.length > 0;
-    });
-
   let appliedCount = 0;
   const errors: string[] = [];
 
-  for (const statement of rawStatements) {
+  // Try official migrationRunner enqueue first if available
+  if (typeof (migrationRunner as any)?.enqueue === 'function') {
     try {
-      await (sql as any).executeDDL(statement);
+      for (let i = 0; i < DDL_STATEMENTS.length; i++) {
+        const stmt = DDL_STATEMENTS[i];
+        const stepName = `${SCHEMA_VERSION}_step_${i + 1}`;
+        await (migrationRunner as any).enqueue(stepName, stmt);
+        appliedCount++;
+      }
+      return { success: true, appliedCount, errors: [] };
+    } catch (enqueueErr: any) {
+      // Fall through to direct DDL execution if enqueue not available in this context
+      console.warn('[ANDON Migration] migrationRunner.enqueue fallback to direct DDL:', enqueueErr?.message);
+    }
+  }
+
+  // Direct DDL execution via sql.executeDDL / sql.prepare
+  for (const statement of DDL_STATEMENTS) {
+    try {
+      if (typeof (sql as any).executeDDL === 'function') {
+        await (sql as any).executeDDL(statement);
+      } else if (typeof (sql as any).prepare === 'function') {
+        await (sql as any).prepare(statement).execute();
+      }
       appliedCount++;
     } catch (err: any) {
-      // In SQLite, table already exists or index already exists is safe to pass if IF NOT EXISTS was used
-      if (err.message && err.message.includes('already exists')) {
+      if (err.message && (err.message.includes('already exists') || err.message.includes('Duplicate'))) {
         appliedCount++;
       } else {
-        errors.push(`Error executing statement [${statement.substring(0, 40)}...]: ${err.message}`);
+        errors.push(`Error executing DDL statement: ${err.message}`);
       }
     }
   }
@@ -57,4 +54,3 @@ export async function runMigrations(): Promise<{ success: boolean; appliedCount:
     errors,
   };
 }
-

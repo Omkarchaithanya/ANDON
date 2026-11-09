@@ -15,7 +15,7 @@
  * 5. All LLM outputs are parsed as structured JSON with validation.
  */
 
-import { forge } from '@forge/llm';
+import * as forgeLlm from '@forge/llm';
 import { ExtractionProposal } from '../models/entities';
 import { ExternalApiError, ValidationError } from '../utils/errors';
 import { isNonEmptyString } from '../utils/validation';
@@ -166,16 +166,34 @@ async function callLlmAndParse<T>(
   let rawResponse: string;
 
   try {
-    const response = await forge.llm.generate({
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userMessage },
-      ],
-      // Instruct the model to return JSON
-      responseFormat: { type: 'json_object' },
-    });
-
-    rawResponse = response.content;
+    if (typeof (forgeLlm as any).chat === 'function') {
+      const response = await (forgeLlm as any).chat({
+        model: 'claude-3-5-sonnet',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userMessage },
+        ],
+      });
+      const choice = response?.choices?.[0];
+      if (typeof choice?.message?.content === 'string') {
+        rawResponse = choice.message.content;
+      } else if (Array.isArray(choice?.message?.content)) {
+        rawResponse = choice.message.content.map((p: any) => p.text || '').join('');
+      } else {
+        rawResponse = (response as any)?.content || '';
+      }
+    } else if (typeof (forgeLlm as any).forge?.llm?.generate === 'function') {
+      const response = await (forgeLlm as any).forge.llm.generate({
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userMessage },
+        ],
+        responseFormat: { type: 'json_object' },
+      });
+      rawResponse = response.content;
+    } else {
+      throw new Error('No supported LLM invocation method found on @forge/llm');
+    }
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     throw new ExternalApiError(`Forge LLM call failed: ${message}`);

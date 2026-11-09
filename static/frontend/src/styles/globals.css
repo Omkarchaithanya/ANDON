@@ -1255,6 +1255,12 @@ html, body, #root {
   padding: 8px 12px;
 }
 
+.step-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
 .step-type {
   display: block;
   font-size: 9px;

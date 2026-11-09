@@ -54,9 +54,10 @@ export interface CurrentUser {
 /** App property key for storing the reviewer policy. */
 const REVIEWER_POLICY_PROPERTY_KEY = 'andon:reviewer-policy';
 
-/** Default policy when no configuration exists. */
+/** Default policy when no configuration exists: fail closed. */
 const DEFAULT_REVIEWER_POLICY: ReviewerPolicy = {
-  mode: 'any_authenticated',
+  mode: 'configured_list',
+  allowed_account_ids: [],
 };
 
 // ---------------------------------------------------------------------------
@@ -272,7 +273,7 @@ export async function getReviewerPolicy(): Promise<ReviewerPolicy> {
       return DEFAULT_REVIEWER_POLICY;
     }
 
-    const parsed = stored as Partial<ReviewerPolicy>;
+    const parsed = (typeof stored === 'string' ? JSON.parse(stored) : stored) as Partial<ReviewerPolicy>;
 
     // Validate the stored policy
     if (
@@ -290,11 +291,14 @@ export async function getReviewerPolicy(): Promise<ReviewerPolicy> {
       };
     }
 
-    // Invalid mode — fall back to default
+    // Invalid mode — fail closed
     return DEFAULT_REVIEWER_POLICY;
-  } catch {
-    // Storage read failure — fail open to default policy
-    return DEFAULT_REVIEWER_POLICY;
+  } catch (err: unknown) {
+    // Storage read failure — fail closed, never fail open
+    const message = err instanceof Error ? err.message : String(err);
+    throw new AuthorizationError(
+      `Failed to read reviewer policy from storage; failing closed: ${message}`
+    );
   }
 }
 

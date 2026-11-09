@@ -2,8 +2,8 @@
  * @module teamwork-graph.service
  * @description Service for Atlassian Teamwork Graph API integration.
  *
- * The Teamwork Graph API provides curated GraphQL queries for discovering
- * relationships between Atlassian entities (pages, owners, spaces, etc.).
+ * Uses curated GraphQL operations with GraphQL variables and ARI formatting.
+ * Calls api.asUser().requestTeamworkGraph (with requestGraph compatibility fallback).
  *
  * IMPORTANT: All Teamwork Graph calls are current-user scoped. This means
  * event handlers (async events, scheduled triggers, webhooks) CANNOT use
@@ -22,85 +22,101 @@ const PAGE_SIZE = 25;
 /** Maximum number of pagination rounds to prevent infinite loops. */
 const MAX_PAGINATION_ROUNDS = 20;
 
-/**
- * Represents a Confluence page linked via the Teamwork Graph.
- */
 export interface LinkedPage {
-  /** The Confluence page ID. */
   id: string;
-  /** The page title at the time of query. */
   title: string;
 }
 
-/**
- * Represents an owner of a Confluence page as reported by Teamwork Graph.
- */
 export interface PageOwner {
-  /** The Atlassian account ID of the owner. */
   accountId: string;
-  /** The display name of the owner. */
   displayName: string;
 }
 
 /**
- * Internal type for Teamwork Graph linked-pages response nodes.
+ * Builds or normalizes a Confluence Page ARI.
  */
-interface LinkedPagesResponseNode {
-  id: string;
-  title: string;
+export function buildConfluencePageAri(pageIdOrAri: string, cloudId?: string): string {
+  if (pageIdOrAri.startsWith('ari:cloud:confluence:')) {
+    return pageIdOrAri;
+  }
+  const effectiveCloudId = cloudId || 'current';
+  return `ari:cloud:confluence:${effectiveCloudId}:page/${pageIdOrAri}`;
 }
 
-/**
- * Internal type for Teamwork Graph linked-pages response shape.
- */
-interface LinkedPagesResponse {
-  data?: {
-    confluencePageLinkedConfluencePages?: {
-      nodes: LinkedPagesResponseNode[];
-      pageInfo: {
-        hasNextPage: boolean;
-        endCursor: string | null;
-      };
-    };
-  };
-  errors?: Array<{ message: string }>;
-}
+const LINKED_PAGES_QUERY = `
+  query ANDON_linkedPages($id: ID!, $first: Int!, $after: String) {
+    confluencePageLinkedConfluencePages(id: $id, first: $first, after: $after) {
+      edges {
+        node {
+          ... on ConfluencePage {
+            id
+            title
+          }
+        }
+      }
+      nodes {
+        id
+        title
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+    }
+  }
+`;
 
-/**
- * Internal type for Teamwork Graph page-owners response shape.
- */
-interface PageOwnersResponse {
-  data?: {
-    confluencePageOwners?: {
-      nodes: Array<{
-        accountId: string;
-        displayName: string;
-      }>;
-    };
-  };
-  errors?: Array<{ message: string }>;
+const PAGE_OWNERS_QUERY = `
+  query ANDON_pageOwners($id: ID!) {
+    confluencePageOwners(id: $id) {
+      edges {
+        node {
+          ... on User {
+            accountId
+            displayName
+          }
+        }
+      }
+      nodes {
+        accountId
+        displayName
+      }
+    }
+  }
+`;
+
+async function executeGraphQuery(query: string, variables: Record<string, unknown>): Promise<any> {
+  const userApi = api.asUser() as any;
+
+  if (typeof userApi.requestTeamworkGraph === 'function') {
+    return userApi.requestTeamworkGraph(query, variables);
+  }
+
+  if (typeof userApi.requestGraph === 'function') {
+    // Inject variables directly if running against older GraphQL shim
+    let inlinedQuery = query;
+    for (const [k, v] of Object.entries(variables)) {
+      if (typeof v === 'string') {
+        inlinedQuery = inlinedQuery.replace(new RegExp(`\\$${k}\\b`, 'g'), `"${v}"`);
+      } else {
+        inlinedQuery = inlinedQuery.replace(new RegExp(`\\$${k}\\b`, 'g'), String(v));
+      }
+    }
+    return userApi.requestGraph(inlinedQuery);
+  }
+
+  throw new ExternalApiError('Neither requestTeamworkGraph nor requestGraph is available on api.asUser()');
 }
 
 /**
  * Retrieves all Confluence pages linked to the given page via Teamwork Graph.
- *
- * Uses the curated query `confluencePageLinkedConfluencePages` with automatic
- * pagination (max 25 results per page). Iterates through all pages until
- * `hasNextPage` is false or the safety limit is reached.
- *
- * @param pageId - The Confluence page ID to query linked pages for.
- * @returns An array of linked page IDs and titles.
- * @throws {ValidationError} If pageId is empty or invalid.
- * @throws {ExternalApiError} If the Teamwork Graph API returns an error.
- *
- * @remarks
- * This method is current-user scoped. Do NOT call from event handlers.
  */
-export async function getLinkedConfluencePages(pageId: string): Promise<LinkedPage[]> {
-  if (!isNonEmptyString(pageId)) {
+export async function getLinkedConfluencePages(pageIdOrAri: string): Promise<LinkedPage[]> {
+  if (!isNonEmptyString(pageIdOrAri)) {
     throw new ValidationError('pageId must be a non-empty string');
   }
 
+  const ari = buildConfluencePageAri(pageIdOrAri);
   const allLinkedPages: LinkedPage[] = [];
   let hasNextPage = true;
   let endCursor: string | null = null;
@@ -109,49 +125,63 @@ export async function getLinkedConfluencePages(pageId: string): Promise<LinkedPa
   while (hasNextPage && round < MAX_PAGINATION_ROUNDS) {
     round++;
 
-    const afterClause = endCursor ? `, after: "${endCursor}"` : '';
-    const query = `query { confluencePageLinkedConfluencePages(id: "${pageId}", first: ${PAGE_SIZE}${afterClause}) { nodes { id title } pageInfo { hasNextPage endCursor } } }`;
-
     let response: any;
     try {
-      response = await api.asUser().requestGraph(query);
+      response = await executeGraphQuery(LINKED_PAGES_QUERY, {
+        id: ari,
+        first: PAGE_SIZE,
+        after: endCursor,
+      });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       throw new ExternalApiError(
-        `Teamwork Graph request failed for linked pages of page ${pageId}: ${message}`
+        `Teamwork Graph request failed for linked pages of ${pageIdOrAri}: ${message}`
       );
     }
 
     if (!response.ok) {
       throw new ExternalApiError(
-        `Teamwork Graph returned HTTP ${response.status} for linked pages of page ${pageId}`
+        `Teamwork Graph returned HTTP ${response.status} for linked pages of ${pageIdOrAri}`
       );
     }
 
-    const body = (await response.json()) as LinkedPagesResponse;
+    const body = await response.json();
 
     if (body.errors && body.errors.length > 0) {
-      const errorMessages = body.errors.map((e) => e.message).join('; ');
+      const errorMessages = body.errors.map((e: any) => e.message).join('; ');
       throw new ExternalApiError(
-        `Teamwork Graph query errors for page ${pageId}: ${errorMessages}`
+        `Teamwork Graph query errors for ${pageIdOrAri}: ${errorMessages}`
       );
     }
 
     const result = body.data?.confluencePageLinkedConfluencePages;
     if (!result) {
-      // No linked pages found — return empty
       return allLinkedPages;
     }
 
-    for (const node of result.nodes) {
-      allLinkedPages.push({
-        id: node.id,
-        title: node.title,
-      });
+    // Support both Relay edges and flat nodes
+    if (Array.isArray(result.edges)) {
+      for (const edge of result.edges) {
+        if (edge?.node?.id) {
+          allLinkedPages.push({
+            id: edge.node.id,
+            title: edge.node.title || 'Untitled',
+          });
+        }
+      }
+    } else if (Array.isArray(result.nodes)) {
+      for (const node of result.nodes) {
+        if (node?.id) {
+          allLinkedPages.push({
+            id: node.id,
+            title: node.title || 'Untitled',
+          });
+        }
+      }
     }
 
-    hasNextPage = result.pageInfo.hasNextPage;
-    endCursor = result.pageInfo.endCursor;
+    hasNextPage = Boolean(result.pageInfo?.hasNextPage);
+    endCursor = result.pageInfo?.endCursor || null;
   }
 
   return allLinkedPages;
@@ -159,117 +189,88 @@ export async function getLinkedConfluencePages(pageId: string): Promise<LinkedPa
 
 /**
  * Retrieves the owners of a Confluence page via Teamwork Graph.
- *
- * Uses the curated query `confluencePageOwners` to identify who owns
- * or is responsible for the given page.
- *
- * @param pageId - The Confluence page ID to query owners for.
- * @returns An array of owner account IDs and display names.
- * @throws {ValidationError} If pageId is empty or invalid.
- * @throws {ExternalApiError} If the Teamwork Graph API returns an error.
- *
- * @remarks
- * This method is current-user scoped. Do NOT call from event handlers.
  */
-export async function getPageOwners(pageId: string): Promise<PageOwner[]> {
-  if (!isNonEmptyString(pageId)) {
+export async function getPageOwners(pageIdOrAri: string): Promise<PageOwner[]> {
+  if (!isNonEmptyString(pageIdOrAri)) {
     throw new ValidationError('pageId must be a non-empty string');
   }
 
-  const query = `query { confluencePageOwners(id: "${pageId}") { nodes { accountId displayName } } }`;
+  const ari = buildConfluencePageAri(pageIdOrAri);
 
   let response: any;
   try {
-    response = await api.asUser().requestGraph(query);
+    response = await executeGraphQuery(PAGE_OWNERS_QUERY, { id: ari });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     throw new ExternalApiError(
-      `Teamwork Graph request failed for owners of page ${pageId}: ${message}`
+      `Teamwork Graph request failed for owners of ${pageIdOrAri}: ${message}`
     );
   }
 
   if (!response.ok) {
     throw new ExternalApiError(
-      `Teamwork Graph returned HTTP ${response.status} for owners of page ${pageId}`
+      `Teamwork Graph returned HTTP ${response.status} for owners of ${pageIdOrAri}`
     );
   }
 
-  const body = (await response.json()) as PageOwnersResponse;
+  const body = await response.json();
 
   if (body.errors && body.errors.length > 0) {
-    const errorMessages = body.errors.map((e) => e.message).join('; ');
+    const errorMessages = body.errors.map((e: any) => e.message).join('; ');
     throw new ExternalApiError(
-      `Teamwork Graph query errors for page ${pageId} owners: ${errorMessages}`
+      `Teamwork Graph query errors for ${pageIdOrAri}: ${errorMessages}`
     );
   }
 
-  const nodes = body.data?.confluencePageOwners?.nodes;
-  if (!nodes) {
-    return [];
+  const result = body.data?.confluencePageOwners;
+  const owners: PageOwner[] = [];
+
+  if (result) {
+    if (Array.isArray(result.edges)) {
+      for (const edge of result.edges) {
+        if (edge?.node?.accountId) {
+          owners.push({
+            accountId: edge.node.accountId,
+            displayName: edge.node.displayName || 'Confluence User',
+          });
+        }
+      }
+    } else if (Array.isArray(result.nodes)) {
+      for (const node of result.nodes) {
+        if (node?.accountId) {
+          owners.push({
+            accountId: node.accountId,
+            displayName: node.displayName || 'Confluence User',
+          });
+        }
+      }
+    }
   }
 
-  return nodes.map((node) => ({
-    accountId: node.accountId,
-    displayName: node.displayName,
-  }));
+  return owners;
 }
 
 /**
- * Discovers the full graph context for a site registry page.
- *
- * This is the main entry point for discovery. It combines:
- * 1. All Confluence pages linked to the site registry page
- * 2. The owners of the site registry page
- *
- * The result is a {@link GraphContext} that provides the input context
- * for downstream processing (evidence extraction, scope comparison, etc.).
- *
- * @param siteRegistryPageId - The Confluence page ID of the site registry.
- * @returns A GraphContext containing linked pages and page owners.
- * @throws {ValidationError} If siteRegistryPageId is empty or invalid.
- * @throws {ExternalApiError} If any Teamwork Graph API call fails.
- *
- * @remarks
- * This method is current-user scoped. Do NOT call from event handlers.
- *
- * @example
- * ```typescript
- * const context = await discoverGraphContext('12345678');
- * console.log(`Found ${context.linked_page_ids.length} linked pages`);
- * console.log(`Found ${context.owner_account_ids.length} owners`);
- * ```
+ * Convenience method combining linked pages and page owners discovery for a root page.
  */
-export async function discoverGraphContext(
-  siteRegistryPageId: string
-): Promise<GraphContext> {
-  if (!isNonEmptyString(siteRegistryPageId)) {
-    throw new ValidationError('siteRegistryPageId must be a non-empty string');
-  }
+export async function discoverGraphContext(rootPageId: string): Promise<GraphContext> {
+  const linked = await getLinkedConfluencePages(rootPageId);
+  const owners = await getPageOwners(rootPageId);
 
-  // Fetch linked pages and owners in parallel for efficiency
-  const [linkedPages, owners] = await Promise.all([
-    getLinkedConfluencePages(siteRegistryPageId),
-    getPageOwners(siteRegistryPageId),
-  ]);
-
-  const graphContext: GraphContext = {
-    site_page_id: siteRegistryPageId,
-    linked_pages: linkedPages.map((p) => ({
-      page_id: p.id,
-      title: p.title,
-    })),
+  return {
+    site_page_id: rootPageId,
+    registry_page_id: rootPageId,
+    linked_pages: linked.map((p) => ({ page_id: p.id, title: p.title })),
     page_owners: owners.map((o) => ({
-      page_id: siteRegistryPageId,
+      page_id: rootPageId,
       owner_account_id: o.accountId,
       owner_display_name: o.displayName,
     })),
-    registry_page_id: siteRegistryPageId,
-    linked_page_ids: linkedPages.map((p) => p.id),
-    linked_page_titles: linkedPages.map((p) => p.title),
+    linked_page_ids: linked.map((p) => p.id),
+    linked_page_titles: linked.map((p) => p.title),
     owner_account_ids: owners.map((o) => o.accountId),
     owner_display_names: owners.map((o) => o.displayName),
     discovered_at: new Date().toISOString(),
   };
-
-  return graphContext;
 }
+
