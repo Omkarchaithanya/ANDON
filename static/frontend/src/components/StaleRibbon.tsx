@@ -76,3 +76,4 @@ export const StaleRibbon: React.FC<StaleRibbonProps> = ({
     </>
   );
 };
+

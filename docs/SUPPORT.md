@@ -20,3 +20,4 @@
 ## Escalation & Maintenance Windows
 - Scheduled maintenance follows Atlassian Cloud release schedules.
 - Version upgrades and schema migrations are verified using automated backward-compatibility tests before rollout.
+

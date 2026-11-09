@@ -1,0 +1,63 @@
+{
+  "notice": "SYNTHETIC DEMONSTRATION FIXTURE - For hackathon evaluation and testing only. Does not represent any actual customer incident.",
+  "site": {
+    "name": "Warehouse Alpha (Synthetic Demo)",
+    "confluence_page_id": "demo-site-registry-001",
+    "metadata": {
+      "synthetic": true,
+      "facilityType": "Automated Distribution Center"
+    }
+  },
+  "zone": {
+    "name": "Aisle 7",
+    "zone_type": "aisle",
+    "metadata": {
+      "synthetic": true,
+      "trafficType": "Autonomous Mobile Robot Transit"
+    }
+  },
+  "deployment": {
+    "deployment_identifier": "AMR-12",
+    "confluence_page_id": "demo-amr12-commissioning-001",
+    "confluence_page_version": 3,
+    "owner_account_id": "qualified-robotics-lead",
+    "metadata": {
+      "synthetic": true,
+      "cameraConfiguration": "C4",
+      "robotType": "Autonomous Mobile Robot (AMR)"
+    }
+  },
+  "condition": {
+    "attribute_name": "surface_finish",
+    "attribute_value": "matte_epoxy",
+    "source_quoted_text": "Observed route/perception results apply to AMR-12, camera configuration C4, Aisle 7, existing matte epoxy finish.",
+    "source_confluence_page_id": "demo-amr12-commissioning-001",
+    "source_page_version": 3
+  },
+  "evidence": {
+    "evidence_type": "commissioning",
+    "source_quoted_text": "Commissioning test results for AMR-12 in Aisle 7 demonstrate acceptable route tracking and perception performance under the following conditions: surface_finish = matte_epoxy, lighting_type = standard_warehouse_led, camera_config = C4.",
+    "declared_scope": {
+      "conditions": [
+        {
+          "attribute_name": "surface_finish",
+          "attribute_value": "matte_epoxy"
+        },
+        {
+          "attribute_name": "lighting_type",
+          "attribute_value": "standard_warehouse_led"
+        }
+      ],
+      "configuration_id": "C4"
+    },
+    "metadata": {
+      "synthetic": true,
+      "testPlanPage": "demo-test-plan-amr12"
+    }
+  },
+  "intakeRequest": {
+    "summary": "Apply high-gloss clear finish to Aisle 7 next Saturday",
+    "description": "The facilities team will apply a high-gloss clear finish to the floor of Aisle 7 this coming Saturday during the maintenance window. This is part of the Q4 floor maintenance program. The current matte epoxy surface is showing wear in the main traffic areas."
+  }
+}
+

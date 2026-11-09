@@ -27,3 +27,4 @@ This document contains the official scope justifications required for Atlassian 
 > 4. `read:teamwork-graph`: ANDON traverses recorded context nodes linking facilities zones to commissioned robot deployments to provide an inspectable provenance thread.
 >
 > No external network egress is declared or used. All data processing occurs on Forge-hosted compute and is isolated per tenant.
+

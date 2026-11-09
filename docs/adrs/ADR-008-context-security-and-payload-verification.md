@@ -21,3 +21,4 @@ Community security audits ("Forge context security: which parts can we trust, an
    - If `@forge/bridge` `invoke()` does not resolve within 15 seconds, the hook cancels the pending state and surfaces an actionable error card with a visible **"Retry Resolver Call"** button. The UI never hangs indefinitely.
 4. **Zero Forge Remote:**
    - All logic, deterministic coverage evaluation, and storage operations are hosted entirely within Atlassian Forge infrastructure. No external egress or remote compute is configured.
+

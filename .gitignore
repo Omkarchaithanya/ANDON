@@ -4,3 +4,5 @@ static/frontend/build/
 dist/
 .DS_Store
 *.log
+andon/
+

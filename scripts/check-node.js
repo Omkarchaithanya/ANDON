@@ -17,3 +17,4 @@ if (semverMajor === 22 && (semverMinor < 23 || (semverMinor === 23 && semverPatc
 
 console.log('✓ Node.js version satisfies Atlassian Forge supported LTS requirements (>=22.23.4).');
 process.exit(0);
+

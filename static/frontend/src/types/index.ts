@@ -10,6 +10,9 @@ export enum Screen {
   CHANGE_LENS = 'CHANGE_LENS',
   EVIDENCE_REDLINE = 'EVIDENCE_REDLINE',
   REVIEW_PACKAGE = 'REVIEW_PACKAGE',
+  DECISION_HISTORY = 'DECISION_HISTORY',
+  SITE_REGISTRY = 'SITE_REGISTRY',
+  ADMINISTRATION = 'ADMINISTRATION',
 }
 
 /* ── Status enums ───────────────────────────────────────────── */

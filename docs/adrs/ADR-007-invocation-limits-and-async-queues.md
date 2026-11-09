@@ -21,3 +21,4 @@ If an integration traversal (Jira work request ➔ Confluence Site Registry Page
    - The queue consumer processes background revalidation under the 55-second long-running budget without blocking the interactive UI.
 3. **Fail-Closed Resilience:**
    - A slow or unresponsive upstream dependency produces a deterministic `Unknown` finding with an inspectable reason, preserving the safety rule: *Unknown is never cleared without explicit human confirmation.*
+

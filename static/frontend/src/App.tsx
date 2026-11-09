@@ -1,10 +1,17 @@
 import { useState, useEffect } from 'react';
 import { Screen } from './types';
+import { Sidebar } from './components/Sidebar';
+import { Topbar } from './components/Topbar';
+import { PageHeader } from './components/PageHeader';
+import { StatusFooter } from './components/StatusFooter';
 import { ChangeLens } from './screens/ChangeLens';
 import { EvidenceRedline } from './screens/EvidenceRedline';
 import { ReviewPackage } from './screens/ReviewPackage';
 import { AndonLightStack, LampStatus } from './components/AndonLightStack';
 import { StatesGallery } from './components/StatesGallery';
+import { SiteRegistryView } from './screens/SiteRegistryView';
+import { DecisionHistoryView } from './screens/DecisionHistoryView';
+import { AdminSettingsView } from './screens/AdminSettingsView';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import './styles/globals.css';
 
@@ -21,6 +28,7 @@ export function App() {
     return 'dark'; // Modern cyber-industrial default
   });
 
+  // Keyboard shortcut listener: 1, 2, 3 to navigate workflow steps
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('andon_theme', theme);
@@ -97,6 +105,12 @@ export function App() {
             </div>
           </aside>
         )}
+      <div className="andon-dashboard-shell">
+        {/* Left Dark Navigation Sidebar */}
+        <Sidebar
+          currentScreen={currentScreen}
+          onNavigate={(screen) => setCurrentScreen(screen)}
+        />
 
         {/* Top Engineering Title Block */}
         <header className="andon-title-block-header">
@@ -111,6 +125,10 @@ export function App() {
               </span>
             </div>
           </div>
+        {/* Right Main Working Area */}
+        <div className="andon-main-wrapper">
+          {/* Top Bar Navigation */}
+          <Topbar />
 
           <div className="title-block-right" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
             <button
@@ -175,6 +193,10 @@ export function App() {
             discoveryStatus={discoveryLamp}
             applicabilityStatus={applicabilityLamp}
             freshnessStatus={freshnessLamp}
+          {/* Subheader with Page Title and Workflow Stepper */}
+          <PageHeader
+            currentScreen={currentScreen}
+            onSelectScreen={(screen) => setCurrentScreen(screen)}
           />
 
           <main style={{ minWidth: 0 }}>
@@ -184,10 +206,16 @@ export function App() {
               </div>
             )}
 
+          {/* Main Dashboard Canvas Body */}
+          <main className="andon-content-body" role="main">
             {currentScreen === Screen.CHANGE_LENS && (
               <ErrorBoundary fallbackTitle="Change Intake Lens Error" onReset={handleBackToChangeLens}>
                 <ChangeLens onSelectCandidate={handleSelectCandidate} />
               </ErrorBoundary>
+              <ChangeLens
+                onSelectCandidate={handleSelectCandidate}
+                onOpenRegistry={() => setCurrentScreen(Screen.SITE_REGISTRY)}
+              />
             )}
 
             {currentScreen === Screen.EVIDENCE_REDLINE && (
@@ -198,6 +226,11 @@ export function App() {
                   onProceedToReview={handleProceedToReview}
                 />
               </ErrorBoundary>
+              <EvidenceRedline
+                changeIntentId={selectedCandidateId}
+                onBack={handleBackToChangeLens}
+                onProceedToReview={handleProceedToReview}
+              />
             )}
 
             {currentScreen === Screen.REVIEW_PACKAGE && (
@@ -207,6 +240,10 @@ export function App() {
                   onBack={handleBackToRedline}
                 />
               </ErrorBoundary>
+              <ReviewPackage
+                reviewDecisionId={selectedReviewDecisionId}
+                onBack={handleBackToRedline}
+              />
             )}
           </main>
         </div>
@@ -226,6 +263,9 @@ export function App() {
               ANDON RADAR
             </span>
           </div>
+            {currentScreen === Screen.SITE_REGISTRY && (
+              <SiteRegistryView onBack={handleBackToChangeLens} />
+            )}
 
           <div
             className={`hud-shortcut-item ${currentScreen === Screen.CHANGE_LENS ? 'active' : ''}`}
@@ -234,6 +274,9 @@ export function App() {
             <span className="hud-kbd">1</span>
             <span>Intake Lens</span>
           </div>
+            {currentScreen === Screen.DECISION_HISTORY && (
+              <DecisionHistoryView onBack={handleBackToChangeLens} />
+            )}
 
           <div
             className={`hud-shortcut-item ${currentScreen === Screen.EVIDENCE_REDLINE ? 'active' : ''}`}
@@ -242,6 +285,10 @@ export function App() {
             <span className="hud-kbd">2</span>
             <span>Redline</span>
           </div>
+            {currentScreen === Screen.ADMINISTRATION && (
+              <AdminSettingsView onBack={handleBackToChangeLens} />
+            )}
+          </main>
 
           <div
             className={`hud-shortcut-item ${currentScreen === Screen.REVIEW_PACKAGE ? 'active' : ''}`}
@@ -271,6 +318,9 @@ export function App() {
             <span>{showGallery ? '✕ Hide Gallery' : '🔍 8 States'}</span>
           </div>
         </aside>
+          {/* Bottom Fixed Status Bar */}
+          <StatusFooter />
+        </div>
       </div>
     </ErrorBoundary>
   );

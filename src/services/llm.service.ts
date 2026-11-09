@@ -427,7 +427,7 @@ ALLOWED VALUES: [${allowedList}]`;
 
   return {
     normalized: normalizedValue,
-    confidence: clampConfidence(raw.confidence),
+    confidence: normalizedValue ? clampConfidence(raw.confidence) : 0,
     reasoning:
       typeof raw.reasoning === 'string' ? raw.reasoning : 'No reasoning provided',
   };

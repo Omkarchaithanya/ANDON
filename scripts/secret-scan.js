@@ -56,3 +56,4 @@ if (violationCount > 0) {
   console.log('✓ Secret scan clean: 0 hardcoded credentials or private keys detected.');
   process.exit(0);
 }
+

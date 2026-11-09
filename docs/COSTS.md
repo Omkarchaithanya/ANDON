@@ -38,3 +38,4 @@ This document establishes the resource utilization, quota impact, and per-evalua
 1. **Deterministic Rule Engine First:** By executing set-membership evaluations deterministically in Node.js instead of calling an ungrounded LLM, ANDON achieves sub-second latency with 0 token costs.
 2. **Zero-Egress Design:** Running 100% inside Forge eliminate outbound data transfer costs and third-party API subscription overhead.
 3. **Database Efficiency:** Queries use indexed primary keys (`change_intent_id`, `review_decision_id`, `jira_issue_key`), eliminating costly full-table scans.
+

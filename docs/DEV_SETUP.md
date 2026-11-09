@@ -43,3 +43,4 @@ Forge supports provisioning a temporary demo development site via `forge install
 ## 3. Local Custom UI Preview vs Live Forge Bridge
 - **Live Forge Execution:** When running inside Atlassian Cloud (`jira:issuePanel`), the app communicates via native `@forge/bridge` calling Forge backend resolvers.
 - **Local Dev Preview:** When running `npm run dev` at `http://localhost:5173`, a developer harness polyfill provides fixture responses strictly for component layout testing. The UI loudly badges this state: `[DEV HARNESS ONLY — SIMULATING RESOLVERS FOR LOCAL UI DEVELOPMENT — NOT PRODUCTION RUNTIME]`.
+

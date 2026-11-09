@@ -71,3 +71,4 @@ Forge provides isolated environments: `development`, `staging`, and `production`
 | **Production** | Live tenant deployment for authorized facilities teams | `npx @forge/cli deploy -e production` | `npx @forge/cli install -e production` |
 
 > **Strict Rule:** Code is never deployed or tested directly against the production environment without passing development and staging gates.
+
