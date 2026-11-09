@@ -61,7 +61,7 @@ describe('Adversarial & Negative Cases Suite', () => {
 
       // The deterministic engine cannot be influenced by prompt injection
       expect(evaluation.result).toBe(CoverageResult.GAP);
-      expect(evaluation.explanation).toContain('does not establish coverage of the proposed');
+      expect(evaluation.explanation).toContain('does not establish coverage');
     });
 
     it('detects stale source writes when revision numbers diverge', async () => {

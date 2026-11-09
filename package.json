@@ -6,6 +6,8 @@
   "private": true,
   "scripts": {
     "dev": "npm --prefix static/frontend run dev",
+    "server": "ts-node scripts/dev-server.ts",
+    "verify:backend": "ts-node scripts/verify-backend.ts",
     "build": "cd static/frontend && npm run build",
     "test": "jest --config jest.config.js",
     "lint": "tsc --noEmit",

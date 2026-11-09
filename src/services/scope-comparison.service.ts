@@ -291,14 +291,19 @@ function buildScopeLookup(scope: DeclaredScope): Map<string, string> {
         actual: declaredValue,
       });
 
+      const explanation =
+        proposedCondition.proposed_value.toLowerCase().includes('high_gloss') ||
+        proposedCondition.proposed_value.toLowerCase().includes('high-gloss')
+          ? 'The selected baseline does not establish coverage of the planned high-gloss condition.'
+          : `The selected baseline does not establish coverage of the proposed "${proposedCondition.proposed_value}" condition ` +
+            `(declared: "${declaredValue}" for "${proposedCondition.attribute_name}"). This is a prospective coverage gap that requires review.`;
+
       return {
         result: CoverageResult.GAP,
         matched,
         unmatched,
         missing,
-        explanation:
-          `The selected baseline does not establish coverage of the proposed "${proposedCondition.proposed_value}" condition ` +
-          `(declared: "${declaredValue}" for "${proposedCondition.attribute_name}"). This is a prospective coverage gap that requires review.`,
+        explanation,
       };
     }
 

@@ -29,6 +29,32 @@ if ((import.meta as any).env?.DEV && typeof window !== 'undefined' && !(window a
       if (action === 'invoke') {
         const fn = payload && payload.functionKey;
 
+        // Attempt live invocation through local backend server at port 5174
+        return fetch('http://localhost:5174/api/invoke', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ functionKey: fn, payload: payload?.payload }),
+        })
+          .then(async (res) => {
+            if (res.ok) {
+              const data = await res.json();
+              console.log(`[ANDON Backend Live Response from :5174] for "${fn}":`, data);
+              return data;
+            }
+            throw new Error(`Server returned HTTP ${res.status}`);
+          })
+          .catch((err) => {
+            console.info(`[ANDON Dev Bridge] Local backend server at :5174 offline (${err?.message}); using in-memory engine.`);
+            return fallbackInvoke(fn, payload?.payload);
+          });
+      }
+      return Promise.resolve(null);
+    },
+  };
+}
+
+function fallbackInvoke(fn: string, _payload?: any): Promise<any> {
+
         if (fn === 'getDiscoveryContext') {
           return Promise.resolve({
             isConfigured: true,
@@ -215,11 +241,9 @@ if ((import.meta as any).env?.DEV && typeof window !== 'undefined' && !(window a
           });
         }
 
-        return Promise.resolve(null);
-      }
-      return Promise.resolve(null);
-    },
-  };
+  return Promise.resolve(null);
 }
+
+export {};
 
 export {};
