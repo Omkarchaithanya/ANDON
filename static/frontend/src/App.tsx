@@ -61,6 +61,23 @@ export function App() {
 
         {/* Right Main Working Area */}
         <div className="andon-main-wrapper">
+          {typeof window !== 'undefined' && (window as any).__isStandaloneDev && (
+            <div
+              style={{
+                background: '#FEF3C7',
+                color: '#92400E',
+                borderBottom: '1px solid #FCD34D',
+                padding: '6px 16px',
+                fontSize: '11px',
+                fontWeight: 700,
+                textAlign: 'center',
+                letterSpacing: '0.4px',
+              }}
+            >
+              ⚠️ [DEV HARNESS ONLY — SIMULATING RESOLVERS FOR LOCAL UI DEVELOPMENT]
+            </div>
+          )}
+
           {/* Top Bar Navigation */}
           <Topbar />
 
