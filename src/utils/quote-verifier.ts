@@ -56,3 +56,4 @@ export function verifyExactQuote(sourceText: string, quote: string): QuoteVerifi
     endIndex: index + normQuote.length,
   };
 }
+

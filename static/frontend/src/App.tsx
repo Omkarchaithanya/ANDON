@@ -15,8 +15,8 @@ import './styles/globals.css';
 
 export function App() {
   const [currentScreen, setCurrentScreen] = useState<Screen>(Screen.CHANGE_LENS);
-  const [selectedCandidateId, setSelectedCandidateId] = useState<string>('demo-intent-aisle7');
-  const [selectedReviewDecisionId, setSelectedReviewDecisionId] = useState<string>('demo-rev-001');
+  const [selectedCandidateId, setSelectedCandidateId] = useState<string>('');
+  const [selectedReviewDecisionId, setSelectedReviewDecisionId] = useState<string>('');
 
   // Keyboard shortcut listener: 1, 2, 3 to navigate workflow steps
   useEffect(() => {

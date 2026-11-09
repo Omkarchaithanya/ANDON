@@ -14,7 +14,7 @@ export interface AppConfiguration {
   siteRegistryPageId: string;
   defaultFollowupProjectKey: string;
   environment: 'production' | 'staging' | 'development';
-  reviewerPolicyMode: 'owner_only' | 'configured_list' | 'any_authenticated';
+  reviewerPolicyMode: 'owner_only' | 'configured_list';
   allowedReviewerAccountIds?: string[];
   maxTraversalDepth?: number;
 }
@@ -50,7 +50,7 @@ export async function getValidatedConfig(): Promise<AppConfiguration> {
     );
   }
 
-  let reviewerPolicy = { mode: 'any_authenticated' as const, allowed_account_ids: [] as string[] };
+  let reviewerPolicy = { mode: 'configured_list' as const, allowed_account_ids: [] as string[] };
   if (reviewerPolicyRaw) {
     try {
       reviewerPolicy = JSON.parse(reviewerPolicyRaw);

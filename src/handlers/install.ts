@@ -19,3 +19,4 @@ export async function onInstallOrUpgrade(event: any): Promise<void> {
     console.error('[ANDON Lifecycle] Failed to run migrations on install/upgrade:', err?.message || err);
   }
 }
+

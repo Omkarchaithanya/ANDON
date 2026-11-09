@@ -66,7 +66,7 @@ Evidence: all three integration tests `jest.mock` the Jira, Confluence, Graph, L
 Fix: contract tests from recorded real responses (`npm run record`), a live smoke test against the dev site, an eval runner with a locked held-out split and precision/recall reported separately, and the CI gates listed in section 6.
 
 **G12. The "autonomous agent team" is not implemented, and the docs overstate what exists.**
-Evidence: no orchestrator, no tool schemas, no `rovo:agent`/`rovo:skill`/`rovo:mcp` modules, no per-skill scoping; `docs/CUTS.md` and `docs/ASSUMPTIONS.md` are still titled **KEEL** (copied from the other project); `BLOCKERS.md` marks BLK-003 "RESOLVED" without a live call; docs contain `file:///c:/Users/omkar/...` links; `STATUS.md` presents `Page 10482` traversal as verified.
+Evidence: no orchestrator, no tool schemas, no `rovo:agent`/`rovo:skill`/`rovo:mcp` modules, no per-skill scoping; `docs/CUTS.md` and `docs/ASSUMPTIONS.md` are still titled **KEEL** (copied from the other project); `BLOCKERS.md` marks BLK-003 "RESOLVED" without a live call; docs contain ` links; `STATUS.md` presents `Page 10482` traversal as verified.
 Fix: implement section 4, and correct the docs so every claim points to evidence from a real run.
 
 ## 3. Real frameworks and tools: use these instead of building from scratch
@@ -110,3 +110,4 @@ Four scoped skills:
 - **WP5**: Frontend (remove scenario fallbacks `|| 'AMR-12'`, real resolvers, Unknown states, separate dev simulator)
 - **WP6**: Tests, evals, CI (`no-fakes` scanner, copy-lint script, eval harness with locked split, contract tests)
 - **WP7**: Docs integrity (fix KEEL references, remove local links, update all documentation with real evidence)
+

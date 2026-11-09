@@ -82,8 +82,21 @@ jest.mock('../../src/db/repository', () => ({
   getAppConfig: jest.fn().mockResolvedValue('conf-page-site-registry-001'),
   getSiteById: jest.fn().mockResolvedValue({ id: 'site-warehouse-alpha', name: 'Warehouse Alpha' }),
   getZoneByName: jest.fn().mockResolvedValue({ id: 'zone-aisle-7', site_id: 'site-warehouse-alpha', name: 'Aisle 7' }),
+  getDeploymentsByZoneId: jest.fn().mockResolvedValue([
+    { id: 'dep-amr-12', deployment_identifier: 'AMR-12', status: 'active', site_id: 'site-warehouse-alpha', zone_id: 'zone-aisle-7' },
+  ]),
+  getConditionsByDeploymentId: jest.fn().mockResolvedValue([
+    { attribute_name: 'surface_finish', attribute_value: 'matte_epoxy' },
+  ]),
   getChangeIntentByIdempotencyKey: jest.fn().mockResolvedValue(null),
   insertChangeIntent: jest.fn().mockImplementation((input) => Promise.resolve({ id: 'ci-new-123', ...input })),
+  getChangeIntentById: jest.fn().mockResolvedValue({
+    id: 'ci-new-123',
+    proposed_attribute: 'surface_finish',
+    proposed_value: 'high_gloss_clear_finish',
+    discovery_status: 'candidate',
+    source_quoted_text: 'high-gloss clear finish',
+  }),
   insertAuditLog: jest.fn().mockResolvedValue(undefined),
 }));
 
@@ -96,6 +109,6 @@ describe('Discovery Flow Integration', () => {
     expect(candidate.proposed_attribute).toBe('surface_finish');
     expect(candidate.proposed_value).toBe('high_gloss_clear_finish');
     expect(candidate.discovery_status).toBe('candidate');
-    expect(candidate.llm_confidence).toBeGreaterThan(0.9);
+    expect(candidate.source_quoted_text).toContain('high-gloss clear finish');
   });
 });

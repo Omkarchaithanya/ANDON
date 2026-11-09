@@ -18,11 +18,12 @@ modules:
 
   sql:
     - key: main
+      engine: mysql
 
   llm:
     - key: andon-extractor
       model:
-        - claude-3-5-sonnet
+        - claude
 
   function:
     - key: resolver

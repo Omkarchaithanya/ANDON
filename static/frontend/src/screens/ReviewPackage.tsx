@@ -12,6 +12,7 @@ export const ReviewPackage: React.FC<ReviewPackageProps> = ({
 }) => {
   const {
     packageData,
+    loading,
     error,
     loadReviewPackage,
     approveFollowup,
@@ -20,18 +21,16 @@ export const ReviewPackage: React.FC<ReviewPackageProps> = ({
   const [createdIssueKey, setCreatedIssueKey] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [includeExcerpts, setIncludeExcerpts] = useState(true);
+  const [includeExcerpts, setIncludeExcerpts] = useState(false);
 
   const [targetProject, setTargetProject] = useState('ROBOT');
-  const [summary, setSummary] = useState(
-    '[ANDON Review] AMR-12 - surface_finish change in Aisle 7'
-  );
-  const [description, setDescription] = useState(
-    'Prospective coverage gap identified by ANDON:\n\nWork request (FAC-1042) proposes modification of "surface_finish" to "high_gloss_clear_finish".\n\nBaseline commissioning evidence (Confluence Page 10483 rev 3) does not establish coverage of this condition.'
-  );
+  const [summary, setSummary] = useState('');
+  const [description, setDescription] = useState('');
 
   useEffect(() => {
-    loadReviewPackage(reviewDecisionId);
+    if (reviewDecisionId) {
+      loadReviewPackage(reviewDecisionId);
+    }
   }, [reviewDecisionId, loadReviewPackage]);
 
   useEffect(() => {
@@ -51,7 +50,7 @@ export const ReviewPackage: React.FC<ReviewPackageProps> = ({
     try {
       const sanitizedDescription = includeExcerpts
         ? description
-        : `${description}\n\n[PROVENANCE POINTERS]: Confluence Page 10483 rev 3 (AMR-12 Commissioning Baseline).`;
+        : `${description}\n\n[PROVENANCE POINTERS]: Reference baseline ID: ${packageData?.evidenceSourceRef || 'Confluence Baseline'}.`;
 
       const res: any = await approveFollowup(
         reviewDecisionId,
@@ -63,18 +62,46 @@ export const ReviewPackage: React.FC<ReviewPackageProps> = ({
       if (res && (res.issueKey || res.createdIssueKey)) {
         setCreatedIssueKey(res.issueKey || res.createdIssueKey);
       } else {
-        setCreatedIssueKey('ROBOT-8821');
+        throw new Error('Follow-up task created without returned issue key.');
       }
     } catch (err: any) {
       setSubmitError(err?.message || 'Failed to dispatch follow-up task.');
-      // In local dev harness, fall back gracefully to benchmark issue key
-      setCreatedIssueKey('ROBOT-8821');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const isGap = packageData?.coverageStatus !== 'COVERED';
+  if (loading) {
+    return (
+      <div className="review-package-view">
+        <div className="redline-top-action-bar">
+          <button className="btn btn-outline-subtle btn-sm" onClick={onBack}>
+            ← Back to Evidence Redline
+          </button>
+        </div>
+        <div className="andon-card" style={{ marginTop: '20px', textAlign: 'center', padding: '40px' }}>
+          <p style={{ color: '#64748B' }}>Loading review package from platform...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!reviewDecisionId || !packageData) {
+    return (
+      <div className="review-package-view">
+        <div className="redline-top-action-bar">
+          <button className="btn btn-outline-subtle btn-sm" onClick={onBack}>
+            ← Back to Evidence Redline
+          </button>
+        </div>
+        <div className="redline-alert-box alert-error" style={{ marginTop: '20px' }}>
+          <strong>Unknown:</strong> {error || 'No review package found for this decision. Evaluation requires confirmed candidate and accessible evidence.'}
+        </div>
+      </div>
+    );
+  }
+
+  const isGap = packageData.coverageStatus !== 'COVERED';
 
   return (
     <div className="review-package-view" aria-label="Review Package &amp; Handoff Screen">
@@ -86,7 +113,7 @@ export const ReviewPackage: React.FC<ReviewPackageProps> = ({
         <div className="redline-header-titles">
           <h2 className="redline-main-title">Deterministic Coverage Evaluation &amp; Engineering Handoff</h2>
           <p className="redline-main-subtitle">
-            Evaluating planned changes against AMR-12 declared commissioning baseline scope
+            Evaluating planned changes against {packageData.reviewer?.deployment || 'declared'} commissioning baseline scope
           </p>
         </div>
       </div>
@@ -102,28 +129,19 @@ export const ReviewPackage: React.FC<ReviewPackageProps> = ({
         <div className="coverage-eval-header">
           <div className="eval-status-group">
             <span className={`eval-status-pill ${isGap ? 'pill-gap' : 'pill-covered'}`}>
-              {isGap ? 'PROSPECTIVE COVERAGE GAP' : 'COVERED BY BASELINE'}
+              {packageData.coverageStatus === 'UNKNOWN'
+                ? 'UNKNOWN COVERAGE STATUS'
+                : isGap
+                ? 'PROSPECTIVE COVERAGE GAP'
+                : 'COVERED BY BASELINE'}
             </span>
             <span className="eval-mode-tag">DETERMINISTIC ENGINE // SET MEMBERSHIP</span>
           </div>
-          <span className="source-ref-badge">Confluence Page 10483 rev 3</span>
+          <span className="source-ref-badge">{packageData.evidenceSourceRef}</span>
         </div>
 
         <div className="coverage-finding-quote">
-          “{packageData?.gapExplanation || 'The selected baseline does not establish coverage of the planned high-gloss condition.'}”
-        </div>
-
-        {/* Set Membership Formula Box */}
-        <div className="coverage-formula-box">
-          <div className="formula-item">
-            <span className="formula-label">PROPOSED CONDITION:</span>
-            <code className="formula-code">surface_finish: high_gloss_clear_finish</code>
-          </div>
-          <div className="formula-operator">∉</div>
-          <div className="formula-item">
-            <span className="formula-label">DECLARED BASELINE SCOPE:</span>
-            <code className="formula-code">&#123; surface_finish: matte_epoxy &#125;</code>
-          </div>
+          “{packageData.gapExplanation}”
         </div>
 
         {/* Condition Comparison Breakdown Table */}
@@ -138,12 +156,26 @@ export const ReviewPackage: React.FC<ReviewPackageProps> = ({
               </tr>
             </thead>
             <tbody>
-              <tr>
-                <td><strong>surface_finish</strong></td>
-                <td><code>matte_epoxy</code></td>
-                <td><code className="code-proposed">high_gloss_clear_finish</code></td>
-                <td><span className="badge-gap">GAP</span></td>
-              </tr>
+              {packageData.coverageDetails.length > 0 ? (
+                packageData.coverageDetails.map((cond, idx) => (
+                  <tr key={idx}>
+                    <td><strong>{cond.conditionName}</strong></td>
+                    <td><code>{cond.actualValue}</code></td>
+                    <td><code className="code-proposed">{cond.expectedValue}</code></td>
+                    <td>
+                      <span className={cond.isCovered ? 'badge-covered' : 'badge-gap'}>
+                        {cond.isCovered ? 'COVERED' : 'GAP'}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={4} style={{ textAlign: 'center', color: '#64748B' }}>
+                    No conditions recorded in baseline scope. Status is Unknown.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -165,9 +197,9 @@ export const ReviewPackage: React.FC<ReviewPackageProps> = ({
               <span className="clock-icon">🏢</span>
               <strong>Clock 1: Facilities Execution Window</strong>
             </div>
-            <p className="clock-time">Next Saturday • 08:00 AM</p>
+            <p className="clock-time">Scheduled Work Window</p>
             <p className="clock-desc">
-              Floor resurfacing work scheduled under ticket FAC-1042 in Aisle 7.
+              Physical modifications proceed according to facilities schedule unless flagged.
             </p>
           </div>
 
@@ -178,9 +210,9 @@ export const ReviewPackage: React.FC<ReviewPackageProps> = ({
               <span className="clock-icon">🤖</span>
               <strong>Clock 2: Robotics Revalidation Deadline</strong>
             </div>
-            <p className="clock-time">Prior to Resurfacing Window</p>
+            <p className="clock-time">Prior to Modification Execution</p>
             <p className="clock-desc">
-              Robotics engineering evaluation required before floor modifications proceed.
+              Robotics engineering evaluation required before floor or environment modifications proceed.
             </p>
           </div>
         </div>
@@ -206,7 +238,6 @@ export const ReviewPackage: React.FC<ReviewPackageProps> = ({
               <h4 className="success-title">Follow-up Task Dispatched Successfully</h4>
               <p className="success-msg">
                 Created Jira engineering task <strong>{createdIssueKey}</strong> in project <strong>{targetProject}</strong>.
-                Linked bidirectionally to work order <strong>FAC-1042</strong> and recorded in Confluence clearance ledger.
               </p>
             </div>
           </div>
@@ -220,6 +251,7 @@ export const ReviewPackage: React.FC<ReviewPackageProps> = ({
                   className="form-input"
                   value={targetProject}
                   onChange={(e) => setTargetProject(e.target.value)}
+                  placeholder="e.g. ROBOT"
                 />
               </div>
               <div className="form-group">
@@ -227,7 +259,7 @@ export const ReviewPackage: React.FC<ReviewPackageProps> = ({
                 <input
                   type="text"
                   className="form-input"
-                  value="Lead Robotics Engineer (qm:lead-robotics-eng)"
+                  value={packageData.reviewer?.name || 'Qualified Reviewer'}
                   disabled
                 />
               </div>
@@ -240,6 +272,7 @@ export const ReviewPackage: React.FC<ReviewPackageProps> = ({
                 className="form-input"
                 value={summary}
                 onChange={(e) => setSummary(e.target.value)}
+                placeholder="Issue summary"
               />
             </div>
 
@@ -250,6 +283,7 @@ export const ReviewPackage: React.FC<ReviewPackageProps> = ({
                 rows={4}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
+                placeholder="Description"
               />
             </div>
 
@@ -268,7 +302,7 @@ export const ReviewPackage: React.FC<ReviewPackageProps> = ({
               <button
                 className="btn btn-inspect-orange btn-lg"
                 onClick={handleApprove}
-                disabled={isSubmitting}
+                disabled={isSubmitting || !summary.trim()}
               >
                 {isSubmitting ? 'Dispatching Task...' : `Approve & Dispatch Engineering Follow-up (${targetProject}) ➔`}
               </button>

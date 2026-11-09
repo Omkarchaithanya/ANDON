@@ -172,3 +172,4 @@ export const DDL_STATEMENTS: string[] = [
     UNIQUE KEY uk_source_type_id (source_type, source_id)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`
 ];
+

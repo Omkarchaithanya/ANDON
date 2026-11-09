@@ -27,19 +27,21 @@ export const EvidenceRedline: React.FC<EvidenceRedlineProps> = ({
   const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
-    loadRedline(changeIntentId);
+    if (changeIntentId) {
+      loadRedline(changeIntentId);
+    }
   }, [changeIntentId, loadRedline]);
 
   const handleConfirm = async () => {
-    if (!redlineData) return;
+    if (!redlineData || !redlineData.changeIntent) return;
     setConfirmError(null);
     setIsProcessing(true);
     try {
       const reviewDecisionId = await confirmCandidate(
         changeIntentId,
-        redlineData.changeIntent.deployment || 'AMR-12',
-        redlineData.changeIntent.changedAttribute || 'surface_finish',
-        redlineData.changeIntent.proposedValue || 'high_gloss_clear_finish'
+        redlineData.changeIntent.deployment,
+        redlineData.changeIntent.changedAttribute,
+        redlineData.changeIntent.proposedValue
       );
       onProceedToReview(reviewDecisionId);
     } catch (err: any) {
@@ -61,24 +63,39 @@ export const EvidenceRedline: React.FC<EvidenceRedlineProps> = ({
     }
   };
 
-  const candidate = redlineData?.changeIntent || {
-    zone: 'Aisle 7',
-    deployment: 'AMR-12',
-    changedAttribute: 'surface_finish',
-    currentValue: 'matte_epoxy',
-    proposedValue: 'high_gloss_clear_finish',
-  };
+  if (loading) {
+    return (
+      <div className="evidence-redline-view">
+        <div className="redline-top-action-bar">
+          <button className="btn btn-outline-subtle btn-sm" onClick={onBack}>
+            ← Back to Change Intake Lens
+          </button>
+        </div>
+        <div className="andon-card" style={{ marginTop: '20px', textAlign: 'center', padding: '40px' }}>
+          <p style={{ color: '#64748B' }}>Loading evidence redline from platform...</p>
+        </div>
+      </div>
+    );
+  }
 
-  const proposed = redlineData?.proposedSource || {
-    sourceRef: 'FAC-1042',
-    text: 'Apply high-gloss clear finish to Aisle 7 next Saturday',
-  };
+  if (!changeIntentId || !redlineData || !redlineData.changeIntent) {
+    return (
+      <div className="evidence-redline-view">
+        <div className="redline-top-action-bar">
+          <button className="btn btn-outline-subtle btn-sm" onClick={onBack}>
+            ← Back to Change Intake Lens
+          </button>
+        </div>
+        <div className="redline-alert-box alert-error" style={{ marginTop: '20px' }}>
+          <strong>Unknown:</strong> {error || 'No candidate selected or accessible evidence redline found. Relationship cannot be evaluated without accessible source records.'}
+        </div>
+      </div>
+    );
+  }
 
-  const baseline = redlineData?.commissionedSource || {
-    sourceRef: 'Confluence Page 10483',
-    version: 3,
-    text: 'Observed route/perception results apply to AMR-12, camera configuration C4, Aisle 7, existing matte epoxy finish.',
-  };
+  const candidate = redlineData.changeIntent;
+  const proposed = redlineData.proposedSource;
+  const baseline = redlineData.commissionedSource;
 
   return (
     <div className="evidence-redline-view" aria-label="Evidence Redline Screen">
@@ -90,7 +107,7 @@ export const EvidenceRedline: React.FC<EvidenceRedlineProps> = ({
         <div className="redline-header-titles">
           <h2 className="redline-main-title">Evidence Redline &amp; Provenance Inspection</h2>
           <p className="redline-main-subtitle">
-            Side-by-side examination: Jira Work Order (FAC-1042) vs Confluence Commissioning Baseline (Page 10483 rev 3)
+            Side-by-side examination: Jira Work Order ({proposed.sourceRef}) vs Confluence Commissioning Baseline ({baseline.sourceRef} rev {baseline.version})
           </p>
         </div>
       </div>
@@ -114,8 +131,8 @@ export const EvidenceRedline: React.FC<EvidenceRedlineProps> = ({
           </div>
 
           <div className="source-card-meta">
-            <span>Target Zone: <strong>{candidate.zone || 'Aisle 7'}</strong></span>
-            <span>Execution: <strong>Next Saturday (Scheduled)</strong></span>
+            <span>Target Zone: <strong>{candidate.zone || 'Unknown'}</strong></span>
+            <span>Execution: <strong>Scheduled</strong></span>
           </div>
 
           <div className="source-quote-container">
@@ -163,8 +180,8 @@ export const EvidenceRedline: React.FC<EvidenceRedlineProps> = ({
           </div>
 
           <div className="source-card-meta">
-            <span>Deployment: <strong>{candidate.deployment || 'AMR-12'}</strong></span>
-            <span>ODD Sensor Rig: <strong>Camera Config C4</strong></span>
+            <span>Deployment: <strong>{candidate.deployment || 'Unknown'}</strong></span>
+            <span>Attribute: <strong>{candidate.changedAttribute || 'Unknown'}</strong></span>
           </div>
 
           <div className="source-quote-container">
@@ -179,7 +196,7 @@ export const EvidenceRedline: React.FC<EvidenceRedlineProps> = ({
               <span className="dot-blue">●</span>
               <span>Documented Baseline: <code>{candidate.currentValue}</code></span>
             </div>
-            <span className="extracted-hint">Declared in AMR-12 Commissioning Baseline &amp; ODD</span>
+            <span className="extracted-hint">Declared in {candidate.deployment || 'Robot'} Commissioning Baseline</span>
           </div>
 
           <div className="source-card-footer">
@@ -207,7 +224,7 @@ export const EvidenceRedline: React.FC<EvidenceRedlineProps> = ({
             <span className="step-icon">🏢</span>
             <div className="step-info">
               <span className="step-type">SITE REGISTRY</span>
-              <strong className="step-title">Facility Alpha (Page 10482)</strong>
+              <strong className="step-title">Site Registry Anchor</strong>
             </div>
             <span className="step-perm-tag">✓ ACCESSIBLE</span>
           </div>
@@ -218,7 +235,7 @@ export const EvidenceRedline: React.FC<EvidenceRedlineProps> = ({
             <span className="step-icon">📍</span>
             <div className="step-info">
               <span className="step-type">FACILITY ZONE</span>
-              <strong className="step-title">Zone: Aisle 7</strong>
+              <strong className="step-title">Zone: {candidate.zone || 'Unknown'}</strong>
             </div>
             <span className="step-perm-tag">✓ ACCESSIBLE</span>
           </div>
@@ -229,7 +246,7 @@ export const EvidenceRedline: React.FC<EvidenceRedlineProps> = ({
             <span className="step-icon">🤖</span>
             <div className="step-info">
               <span className="step-type">ROBOT DEPLOYMENT</span>
-              <strong className="step-title">Deployment: AMR-12</strong>
+              <strong className="step-title">Deployment: {candidate.deployment || 'Unknown'}</strong>
             </div>
             <span className="step-perm-tag">✓ ACCESSIBLE</span>
           </div>
@@ -240,7 +257,7 @@ export const EvidenceRedline: React.FC<EvidenceRedlineProps> = ({
             <span className="step-icon">📋</span>
             <div className="step-info">
               <span className="step-type">COMMISSIONING ODD</span>
-              <strong className="step-title">Baseline (Page 10483 v3)</strong>
+              <strong className="step-title">{baseline.sourceRef}</strong>
             </div>
             <span className="step-perm-tag">✓ ACCESSIBLE</span>
           </div>
@@ -251,7 +268,7 @@ export const EvidenceRedline: React.FC<EvidenceRedlineProps> = ({
             <span className="step-icon">👤</span>
             <div className="step-info">
               <span className="step-type">DOCUMENT OWNER</span>
-              <strong className="step-title">Lead Robotics Engineer</strong>
+              <strong className="step-title">{redlineData.graphContext?.ownerName || 'Qualified Reviewer'}</strong>
             </div>
             <span className="step-perm-tag">✓ GRAPH IDENTITY</span>
           </div>
@@ -266,7 +283,7 @@ export const EvidenceRedline: React.FC<EvidenceRedlineProps> = ({
             <span>CLEARANCE VERIFICATION CEREMONY</span>
           </div>
           <div className="stamp-authority-info">
-            AUTHORITY: QUALIFIED REVIEWER (qm:lead-robotics-eng)
+            AUTHORITY: QUALIFIED REVIEWER ONLY
           </div>
         </div>
 
@@ -275,8 +292,8 @@ export const EvidenceRedline: React.FC<EvidenceRedlineProps> = ({
             Confirm Operating Assumption Relationship
           </h3>
           <p className="stamp-description">
-            Confirming this candidate asserts that the planned surface finish modification in Aisle 7
-            intersects the declared Operating Design Domain of AMR-12. This generates the official clearance
+            Confirming this candidate asserts that the planned {candidate.changedAttribute || 'condition'} modification in {candidate.zone || 'the zone'}
+            intersects the declared Operating Design Domain of {candidate.deployment || 'the deployment'}. This generates the official clearance
             evaluation and review package.
           </p>
 
@@ -332,7 +349,7 @@ export const EvidenceRedline: React.FC<EvidenceRedlineProps> = ({
               </button>
             </div>
             <p className="modal-description">
-              Provide an engineering justification for why this facilities work order does not intersect AMR-12.
+              Provide an engineering justification for why this facilities work order does not intersect {candidate.deployment || 'the robot deployment'}.
             </p>
             <textarea
               className="modal-textarea"

@@ -27,16 +27,10 @@ export const ChangeLens: React.FC<ChangeLensProps> = ({
   const [dismissModalOpen, setDismissModalOpen] = useState(false);
   const [freshnessExpanded, setFreshnessExpanded] = useState(true);
 
-  const activeCandidate = candidates[0] || {
-    id: 'demo-intent-aisle7',
-    currentValue: 'matte_epoxy',
-    proposedValue: 'high_gloss_clear_finish',
-    deployment: 'AMR-12',
-    zone: 'Aisle 7',
-  };
+  const activeCandidate = candidates.length > 0 ? candidates[0] : null;
 
   const handleDismissSubmit = async () => {
-    if (!dismissReason.trim()) return;
+    if (!activeCandidate || !dismissReason.trim()) return;
     setIsDismissing(true);
     try {
       await dismissCandidate(activeCandidate.id, dismissReason);
@@ -69,13 +63,13 @@ export const ChangeLens: React.FC<ChangeLensProps> = ({
                   </svg>
                 </div>
                 <h3 className="card-heading">Jira Work Request</h3>
-                <span className="jira-key-pill">{context?.issueKey || 'FAC-1042'}</span>
+                <span className="jira-key-pill">{context?.issueKey || 'Unknown'}</span>
               </div>
               <span className="badge-planned">PLANNED</span>
             </div>
 
             <h2 className="jira-headline">
-              {context?.plannedWorkSummary || 'Apply high-gloss clear finish to Aisle 7 next Saturday'}
+              {context?.plannedWorkSummary || (loading ? 'Loading issue details...' : 'No work description recorded')}
             </h2>
 
             {/* 4 Metadata Columns */}
@@ -83,17 +77,17 @@ export const ChangeLens: React.FC<ChangeLensProps> = ({
               <div className="meta-col">
                 <div className="meta-label">
                   <span className="meta-icon">📍</span>
-                  <span>Facility Alpha</span>
+                  <span>Location</span>
                 </div>
-                <div className="meta-value">Aisle 7</div>
+                <div className="meta-value">{context?.location || 'Unknown'}</div>
               </div>
 
               <div className="meta-col">
                 <div className="meta-label">
                   <span className="meta-icon">📅</span>
-                  <span>Next Saturday</span>
+                  <span>Schedule</span>
                 </div>
-                <div className="meta-value">Scheduled</div>
+                <div className="meta-value">{context?.effectiveDate || 'Unscheduled'}</div>
               </div>
 
               <div className="meta-col">
@@ -101,15 +95,15 @@ export const ChangeLens: React.FC<ChangeLensProps> = ({
                   <span className="meta-icon">🔀</span>
                   <span>Source</span>
                 </div>
-                <div className="meta-value">Jira</div>
+                <div className="meta-value">{context?.issueKey ? 'Jira' : 'Unknown'}</div>
               </div>
 
               <div className="meta-col">
                 <div className="meta-label">
                   <span className="meta-icon">🕒</span>
-                  <span>Last Checked</span>
+                  <span>Status</span>
                 </div>
-                <div className="meta-value">2 min ago</div>
+                <div className="meta-value">{loading ? 'Checking...' : 'Synchronized'}</div>
               </div>
             </div>
           </div>
@@ -122,92 +116,143 @@ export const ChangeLens: React.FC<ChangeLensProps> = ({
                 <h3 className="card-heading">Facility Map</h3>
               </div>
               <button className="topbar-dropdown-pill btn-sm" title="Selected Map Scope">
-                <span className="pill-text">Facility Alpha</span>
+                <span className="pill-text">{context?.location || 'Facility Alpha'}</span>
                 <span className="pill-caret">⌄</span>
               </button>
             </div>
 
             <FloorPlanLocator
               siteName="Facility Alpha"
-              zoneName="Aisle 7"
-              deploymentIdentifier="AMR-12"
-              hasLayoutData={true}
+              zoneName={activeCandidate?.zone || context?.location || 'Unknown'}
+              deploymentIdentifier={activeCandidate?.deployment || 'Unknown'}
+              hasLayoutData={Boolean(activeCandidate?.zone)}
             />
           </div>
 
           {/* Card 3: Potential Operating-Assumption Intersection */}
-          <div className="andon-card candidate-intersection-card">
-            <div className="candidate-card-header">
-              <div className="candidate-header-left">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#EA580C" strokeWidth="2.2">
-                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-                  <line x1="12" y1="9" x2="12" y2="13" />
-                  <line x1="12" y1="17" x2="12.01" y2="17" />
-                </svg>
-                <h3 className="candidate-title">Potential Operating-Assumption Intersection</h3>
-              </div>
-              <span className="candidate-badge">CANDIDATE</span>
-            </div>
-
-            <div className="candidate-headline">
-              Surface finish modification detected
-            </div>
-
-            <div className="candidate-body-grid">
-              {/* Left Comparison Boxes */}
-              <div className="condition-compare-group">
-                <div className="condition-box documented-box">
-                  <div className="condition-box-header">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748B" strokeWidth="2">
-                      <polygon points="12 2 2 7 12 12 22 7 12 2" />
-                      <polyline points="2 17 12 22 22 17" />
-                      <polyline points="2 12 12 17 22 12" />
-                    </svg>
-                    <span>Documented Condition</span>
-                  </div>
-                  <div className="condition-box-value">Matte Epoxy</div>
+          {activeCandidate ? (
+            <div className="andon-card candidate-intersection-card">
+              <div className="candidate-card-header">
+                <div className="candidate-header-left">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#EA580C" strokeWidth="2.2">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                    <line x1="12" y1="9" x2="12" y2="13" />
+                    <line x1="12" y1="17" x2="12.01" y2="17" />
+                  </svg>
+                  <h3 className="candidate-title">Potential Operating-Assumption Intersection</h3>
                 </div>
-
-                <div className="condition-box proposed-box">
-                  <div className="condition-box-header">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#EA580C" strokeWidth="2">
-                      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                    </svg>
-                    <span>Proposed Condition</span>
-                  </div>
-                  <div className="condition-box-value">High-Gloss Finish</div>
-                </div>
+                <span className="candidate-badge">{activeCandidate.status}</span>
               </div>
 
-              {/* Right Side Text and Action Buttons */}
-              <div className="candidate-actions-group">
+              <div className="candidate-headline">
+                {activeCandidate.changedAttribute
+                  ? `${activeCandidate.changedAttribute} modification detected`
+                  : 'Condition modification candidate detected'}
+              </div>
+
+              <div className="candidate-body-grid">
+                {/* Left Comparison Boxes */}
+                <div className="condition-compare-group">
+                  <div className="condition-box documented-box">
+                    <div className="condition-box-header">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748B" strokeWidth="2">
+                        <polygon points="12 2 2 7 12 12 22 7 12 2" />
+                        <polyline points="2 17 12 22 22 17" />
+                        <polyline points="2 12 12 17 22 12" />
+                      </svg>
+                      <span>Documented Condition</span>
+                    </div>
+                    <div className="condition-box-value">{activeCandidate.currentValue || 'Unknown'}</div>
+                  </div>
+
+                  <div className="condition-box proposed-box">
+                    <div className="condition-box-header">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#EA580C" strokeWidth="2">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                      </svg>
+                      <span>Proposed Condition</span>
+                    </div>
+                    <div className="condition-box-value">{activeCandidate.proposedValue || 'Unknown'}</div>
+                  </div>
+                </div>
+
+                {/* Right Side Text and Action Buttons */}
+                <div className="candidate-actions-group">
+                  <p className="candidate-explainer">
+                    The request may change an operating assumption on which{' '}
+                    {activeCandidate.deployment || 'the robot'} was commissioned.
+                  </p>
+
+                  <div className="candidate-button-row">
+                    <button
+                      className="btn btn-inspect-orange"
+                      onClick={() => onSelectCandidate(activeCandidate.id)}
+                    >
+                      Inspect Evidence ➔
+                    </button>
+                    <button
+                      className="btn btn-outline-subtle"
+                      onClick={() => setDismissModalOpen(true)}
+                    >
+                      ⊘ Not Related
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Related Context Traversal Line */}
+              <div className="candidate-context-footer">
+                <span className="context-chain-icon">🔗</span>
+                <span>
+                  Related Context: {activeCandidate.zone || 'Zone'} →{' '}
+                  {activeCandidate.deployment || 'Deployment'} → Commissioning Baseline
+                </span>
+              </div>
+            </div>
+          ) : (
+            <div className="andon-card candidate-intersection-card">
+              <div className="candidate-card-header">
+                <div className="candidate-header-left">
+                  <span
+                    style={{
+                      background: '#F1F5F9',
+                      color: '#475569',
+                      padding: '3px 8px',
+                      borderRadius: '4px',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                    }}
+                  >
+                    UNKNOWN
+                  </span>
+                  <h3 className="candidate-title" style={{ marginLeft: '10px' }}>
+                    Operating Assumption Relationship: Unknown
+                  </h3>
+                </div>
+              </div>
+
+              <div className="candidate-headline" style={{ fontSize: '15px' }}>
+                No candidate change intents discovered
+              </div>
+
+              <div style={{ marginTop: '12px' }}>
                 <p className="candidate-explainer">
-                  The request may change an operating assumption on which AMR-12 was commissioned.
+                  No physical operating-assumption candidate has been discovered or confirmed for this work request.
+                  Absence of a recorded graph path indicates relationship status is Unknown (not unaffected).
                 </p>
 
-                <div className="candidate-button-row">
+                <div className="candidate-button-row" style={{ marginTop: '16px' }}>
                   <button
                     className="btn btn-inspect-orange"
-                    onClick={() => onSelectCandidate(activeCandidate.id)}
+                    onClick={triggerDiscovery}
+                    disabled={loading || !context?.issueKey}
                   >
-                    Inspect Evidence ➔
-                  </button>
-                  <button
-                    className="btn btn-outline-subtle"
-                    onClick={() => setDismissModalOpen(true)}
-                  >
-                    ⊘ Not Related
+                    {loading ? 'Scanning Context...' : 'Scan Context via Teamwork Graph ➔'}
                   </button>
                 </div>
               </div>
             </div>
-
-            {/* Related Context Traversal Line */}
-            <div className="candidate-context-footer">
-              <span className="context-chain-icon">🔗</span>
-              <span>Related Context: Aisle 7 → AMR-12 → Commissioning Baseline</span>
-            </div>
-          </div>
+          )}
         </div>
 
         {/* ================= RIGHT COLUMN (35%) ================= */}
@@ -225,40 +270,42 @@ export const ChangeLens: React.FC<ChangeLensProps> = ({
                 </svg>
                 <h3 className="card-heading">Context Overview</h3>
               </div>
-              <button
-                className="btn-link-blue"
-                onClick={() => onSelectCandidate(activeCandidate.id)}
-              >
-                View Graph ➔
-              </button>
+              {activeCandidate && (
+                <button
+                  className="btn-link-blue"
+                  onClick={() => onSelectCandidate(activeCandidate.id)}
+                >
+                  View Graph ➔
+                </button>
+              )}
             </div>
 
             {/* Graph Visual Traversal Chain */}
             <div className="traversal-nodes-chain">
               <div className="chain-node">
                 <div className="node-icon-circle blue-circle">🏢</div>
-                <span className="node-name">Facility Alpha</span>
+                <span className="node-name">Site Registry</span>
               </div>
 
               <div className="chain-arrow">→</div>
 
               <div className="chain-node">
                 <div className="node-icon-circle blue-circle">📍</div>
-                <span className="node-name">Aisle 7</span>
+                <span className="node-name">{activeCandidate?.zone || context?.location || 'Zone'}</span>
               </div>
 
               <div className="chain-arrow">→</div>
 
               <div className="chain-node">
                 <div className="node-icon-circle blue-circle">🤖</div>
-                <span className="node-name">AMR-12</span>
+                <span className="node-name">{activeCandidate?.deployment || 'Deployment'}</span>
               </div>
 
               <div className="chain-arrow">→</div>
 
               <div className="chain-node">
                 <div className="node-icon-circle blue-circle">📄</div>
-                <span className="node-name">Commissioning Baseline</span>
+                <span className="node-name">Baseline Record</span>
               </div>
             </div>
           </div>
@@ -280,16 +327,18 @@ export const ChangeLens: React.FC<ChangeLensProps> = ({
             {freshnessExpanded && (
               <div className="freshness-details">
                 <p className="freshness-text">
-                  All sources accessible • Last checked: 2 min ago
+                  All sources accessible • Last checked: {loading ? 'Checking...' : 'Just now'}
                 </p>
                 <div className="freshness-sources-list">
                   <div className="source-item">
-                    <span>✓ Jira API (FAC-1042)</span>
+                    <span>✓ Jira API ({context?.issueKey || 'Connected'})</span>
                     <span className="source-status-live">Synchronized</span>
                   </div>
                   <div className="source-item">
-                    <span>✓ Confluence (Page 10483 rev 3)</span>
-                    <span className="source-status-live">Current</span>
+                    <span>
+                      ✓ Confluence Baseline ({activeCandidate?.deployment ? `${activeCandidate.deployment} ODD` : 'Standby'})
+                    </span>
+                    <span className="source-status-live">Verified</span>
                   </div>
                   <div className="source-item">
                     <span>✓ Teamwork Graph Traversal</span>
@@ -315,17 +364,13 @@ export const ChangeLens: React.FC<ChangeLensProps> = ({
               <button
                 className="btn btn-outline-action"
                 onClick={triggerDiscovery}
-                disabled={loading}
+                disabled={loading || !context?.issueKey}
               >
                 <span>🔄</span>
-                <span>{loading ? 'Scanning Context...' : 'Scan Context'}</span>
+                <span>{loading ? 'Scanning...' : 'Scan Context'}</span>
               </button>
-
-              <button
-                className="btn btn-outline-action"
-                onClick={onOpenRegistry}
-              >
-                <span>↗</span>
+              <button className="btn btn-outline-action" onClick={onOpenRegistry}>
+                <span>🏢</span>
                 <span>Open Registry</span>
               </button>
             </div>
@@ -333,44 +378,42 @@ export const ChangeLens: React.FC<ChangeLensProps> = ({
 
           {/* Card 4: Why this matters? */}
           <div className="andon-card why-matters-card">
-            <div className="card-top-row">
-              <div className="card-title-group">
-                <div className="info-icon-blue">ℹ</div>
-                <h3 className="card-heading" style={{ color: '#1E40AF' }}>
-                  Why this matters?
-                </h3>
+            <div className="why-matters-content">
+              <div className="card-top-row" style={{ marginBottom: '8px' }}>
+                <div className="card-title-group">
+                  <span className="header-icon">ℹ️</span>
+                  <h3 className="card-heading">Why this matters?</h3>
+                </div>
               </div>
+              <p className="why-matters-text">
+                ANDON helps you verify whether this change conflicts with documented robotics assumptions
+                before work begins.
+              </p>
             </div>
-
-            <p className="why-matters-text">
-              ANDON helps you verify whether this change conflicts with documented robotics assumptions before work begins.
-            </p>
-
-            <RobotArmIllustration height={130} />
+            <div className="why-matters-graphic">
+              <RobotArmIllustration />
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Dismissal Reason Modal Dialog */}
-      {dismissModalOpen && (
+      {/* Dismissal Dialog Modal */}
+      {dismissModalOpen && activeCandidate && (
         <div className="andon-modal-overlay" role="dialog" aria-modal="true">
           <div className="andon-modal-card">
             <div className="modal-header">
               <h3 className="modal-title">Dismiss Candidate Relationship</h3>
-              <button
-                className="modal-close-btn"
-                onClick={() => setDismissModalOpen(false)}
-              >
+              <button className="modal-close-btn" onClick={() => setDismissModalOpen(false)}>
                 ✕
               </button>
             </div>
             <p className="modal-description">
-              Provide an engineering reason for marking this candidate as not related. This audit note is recorded in the Forge clearance ledger.
+              Provide an engineering justification for why this work request does not affect {activeCandidate.deployment || 'the robot'}.
             </p>
             <textarea
               className="modal-textarea"
               rows={3}
-              placeholder="e.g. Facilities work applies exclusively to ceiling lighting, not floor surfaces."
+              placeholder="e.g. Work is restricted to overhead area."
               value={dismissReason}
               onChange={(e) => setDismissReason(e.target.value)}
             />

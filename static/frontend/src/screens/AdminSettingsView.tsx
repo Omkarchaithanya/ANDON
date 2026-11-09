@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { invoke } from '@forge/bridge';
 import { useDiscovery } from '../hooks/useDiscovery';
 
 interface AdminSettingsViewProps {
@@ -7,9 +8,27 @@ interface AdminSettingsViewProps {
 
 export const AdminSettingsView: React.FC<AdminSettingsViewProps> = ({ onBack }) => {
   const { updateConfig } = useDiscovery();
-  const [siteRegistryId, setSiteRegistryId] = useState('10482');
-  const [projectKey, setProjectKey] = useState('ROBOT');
+  const [siteRegistryId, setSiteRegistryId] = useState('');
+  const [projectKey, setProjectKey] = useState('');
   const [saved, setSaved] = useState(false);
+  const [loadingConfig, setLoadingConfig] = useState(true);
+
+  useEffect(() => {
+    async function loadCurrentConfig() {
+      try {
+        const res: any = await invoke('getAppConfig');
+        if (res) {
+          if (res.siteRegistryPageId) setSiteRegistryId(res.siteRegistryPageId);
+          if (res.defaultFollowupProjectKey) setProjectKey(res.defaultFollowupProjectKey);
+        }
+      } catch (err: any) {
+        console.warn('Failed to load initial app config:', err?.message);
+      } finally {
+        setLoadingConfig(false);
+      }
+    }
+    loadCurrentConfig();
+  }, []);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,7 +74,8 @@ export const AdminSettingsView: React.FC<AdminSettingsViewProps> = ({ onBack }) 
               className="form-input"
               value={siteRegistryId}
               onChange={(e) => setSiteRegistryId(e.target.value)}
-              placeholder="e.g. 10482"
+              placeholder="e.g. Confluence Page ID"
+              disabled={loadingConfig}
               required
             />
             <span style={{ fontSize: '11px', color: '#64748B', marginTop: '4px', display: 'block' }}>
@@ -71,6 +91,7 @@ export const AdminSettingsView: React.FC<AdminSettingsViewProps> = ({ onBack }) 
               value={projectKey}
               onChange={(e) => setProjectKey(e.target.value)}
               placeholder="e.g. ROBOT"
+              disabled={loadingConfig}
               required
             />
             <span style={{ fontSize: '11px', color: '#64748B', marginTop: '4px', display: 'block' }}>
@@ -79,7 +100,7 @@ export const AdminSettingsView: React.FC<AdminSettingsViewProps> = ({ onBack }) 
           </div>
 
           <div style={{ paddingTop: '8px' }}>
-            <button type="submit" className="btn btn-inspect-orange">
+            <button type="submit" className="btn btn-inspect-orange" disabled={loadingConfig}>
               Save Configuration
             </button>
           </div>
@@ -88,4 +109,3 @@ export const AdminSettingsView: React.FC<AdminSettingsViewProps> = ({ onBack }) 
     </div>
   );
 };
-

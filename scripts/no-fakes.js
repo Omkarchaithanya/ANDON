@@ -53,3 +53,4 @@ if (hasErrors) {
   console.log('[NO-FAKES] Clean: 0 fake or simulation patterns found in production code.');
   process.exit(0);
 }
+

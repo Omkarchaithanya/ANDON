@@ -2,8 +2,9 @@
 
 > **Product:** ANDON (Shadow-Change Radar for Robotized Workplaces)  
 > **Source of Truth:** `/docs/SPEC.md` (`ANDON__Shadow-change_radar_for_robotized_workplaces.md`)  
-> **Design Specification:** [`/docs/DESIGN.md`](file:///c:/Users/omkar/code%20est/docs/DESIGN.md)  
-> **Test Suite:** 12 Test Suites, 73 Tests Passing (100% Green)
+> **Design Specification:** [`/docs/DESIGN.md`](/docs/DESIGN.md)  
+> **Test Suite:** 15 Test Suites, 99 Tests Passing (100% Green)
+> **Active Blockers:** BLK-001 & BLK-003 pending live site deployment and credentials to record live platform transcripts (see `/docs/BLOCKERS.md`).
 
 ---
 

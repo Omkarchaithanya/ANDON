@@ -8,8 +8,9 @@
  *   → PACKAGE (Human Qualified Reviewer Gate)
  *
  * Invariant: The LLM only proposes during INTAKE; it possesses zero mutation tools.
- * Invariant: Absence of a graph path means "Unknown / No recorded relationship found".
- * Invariant: All candidate findings require human confirmation before action.
+ * Invariant: Absence of a graph path means "Unknown: Graph returned nothing. That is not the same as no relationship."
+ * Invariant: Registry rows come ONLY from configured Confluence site registry. No model auto-creation.
+ * Invariant: Quotes must be exact NFKC substrings; unverified quotes drop the claim.
  */
 
 import { extractChangeAttributes } from '../services/llm.service';
@@ -19,6 +20,7 @@ import { evaluateCoverage, ProposedCondition } from '../services/scope-compariso
 import { getIssue } from '../services/jira.service';
 import { DeclaredScope } from '../models/entities';
 import { DiscoveryStatus } from '../models/enums';
+import { computeFingerprint } from '../utils/content-fingerprint';
 import * as repository from '../db/repository';
 
 export enum PipelineStep {
@@ -40,8 +42,13 @@ export interface PipelineResult {
 /**
  * Executes the bounded single-loop pipeline for a Jira issue.
  */
-export async function executeBoundedPipeline(issueKeyOrId: string): Promise<PipelineResult> {
+export async function executeBoundedPipeline(
+  issueKeyOrId: string,
+  preloadedGraphPages?: Array<{ id: string; title: string }>
+): Promise<PipelineResult> {
+  // -------------------------------------------------------------------------
   // Step 1: INTAKE (LLM extraction, zero tools)
+  // -------------------------------------------------------------------------
   const issue = await getIssue(issueKeyOrId);
   const issueSummary = issue.fields?.summary || (issue as any).summary || '';
   const issueDescription = issue.fields?.description || (issue as any).description || '';
@@ -56,18 +63,49 @@ export async function executeBoundedPipeline(issueKeyOrId: string): Promise<Pipe
     };
   }
 
+  // -------------------------------------------------------------------------
   // Step 2: CONTEXT (Teamwork Graph traversal, no LLM)
+  // -------------------------------------------------------------------------
   const siteConfig = await repository.getAppConfig('site_registry_page_id');
-  const registryPageId = siteConfig || '10482';
-
-  try {
-    await getLinkedConfluencePages(registryPageId);
-  } catch (graphErr: any) {
-    console.warn('[ANDON Brain] Teamwork Graph unreachable or empty context:', graphErr?.message);
+  if (!siteConfig) {
+    return {
+      status: 'UNKNOWN',
+      stepReached: PipelineStep.CONTEXT,
+      reason: 'No site registry page is configured. Please configure site_registry_page_id.',
+    };
   }
 
-  // Look for zone and deployment match in repository
-  const locationName = extraction.location || 'Aisle 7';
+  let linkedPages: Array<{ id: string; title: string }> = preloadedGraphPages || [];
+  if (!preloadedGraphPages) {
+    try {
+      linkedPages = await getLinkedConfluencePages(siteConfig);
+    } catch (graphErr: any) {
+      return {
+        status: 'UNKNOWN',
+        stepReached: PipelineStep.CONTEXT,
+        reason: `Graph returned error (${graphErr?.message}). That is not the same as no relationship.`,
+      };
+    }
+  }
+
+  if (!linkedPages || linkedPages.length === 0) {
+    return {
+      status: 'UNKNOWN',
+      stepReached: PipelineStep.CONTEXT,
+      reason: 'Graph returned nothing. That is not the same as no relationship.',
+    };
+  }
+
+  // Resolve zone from registry only
+  if (!extraction.location) {
+    return {
+      status: 'UNKNOWN',
+      stepReached: PipelineStep.CONTEXT,
+      reason: 'No physical location/zone found in work request.',
+    };
+  }
+
+  const locationName = extraction.location;
   const matchedZone = await repository.getZoneByName(locationName);
 
   if (!matchedZone) {
@@ -79,7 +117,7 @@ export async function executeBoundedPipeline(issueKeyOrId: string): Promise<Pipe
   }
 
   const deployments = await repository.getDeploymentsByZoneId(matchedZone.id);
-  const matchedDeployment = deployments.find((d) => d.status === 'active') || deployments[0];
+  const matchedDeployment = deployments.find((d) => d.status === 'active');
 
   if (!matchedDeployment) {
     return {
@@ -89,28 +127,53 @@ export async function executeBoundedPipeline(issueKeyOrId: string): Promise<Pipe
     };
   }
 
+  // -------------------------------------------------------------------------
   // Step 3: GROUND (Exact NFKC quote verification, no LLM)
-  let quoteVerified = false;
+  // -------------------------------------------------------------------------
+  let verifiedQuote: string | null = null;
   if (extraction.valueQuote) {
-    const quoteCheck = verifyExactQuote(issueText, extraction.valueQuote);
-    quoteVerified = quoteCheck.verified;
+    const check = verifyExactQuote(issueText, extraction.valueQuote);
+    if (check.verified) {
+      verifiedQuote = extraction.valueQuote;
+    }
+  }
+  if (!verifiedQuote && extraction.attributeQuote) {
+    const check = verifyExactQuote(issueText, extraction.attributeQuote);
+    if (check.verified) {
+      verifiedQuote = extraction.attributeQuote;
+    }
   }
 
-  // Step 4: COMPARE (Deterministic scope evaluation engine)
-  const conditions = await repository.getConditionsByDeploymentId(matchedDeployment.id);
-  const matchedCondition =
-    conditions.find((c) => c.attribute_name === extraction.attribute) || conditions[0];
+  if (!verifiedQuote) {
+    return {
+      status: 'UNKNOWN',
+      stepReached: PipelineStep.GROUND,
+      reason: 'Candidate quote could not be verified as an exact NFKC substring of source text. Claim dropped.',
+    };
+  }
 
-  const declaredScope: DeclaredScope = matchedCondition
-    ? {
-        conditions: [
-          {
-            attribute_name: matchedCondition.attribute_name,
-            declared_value: matchedCondition.attribute_value,
-          },
-        ],
-      }
-    : { conditions: [] };
+  // -------------------------------------------------------------------------
+  // Step 4: COMPARE (Deterministic scope evaluation engine)
+  // -------------------------------------------------------------------------
+  const conditions = await repository.getConditionsByDeploymentId(matchedDeployment.id);
+  const matchedCondition = conditions.find((c) => c.attribute_name === extraction.attribute);
+
+  if (!matchedCondition) {
+    return {
+      status: 'UNKNOWN',
+      stepReached: PipelineStep.COMPARE,
+      reason: `Attribute "${extraction.attribute}" is not in declared baseline scope of deployment ${matchedDeployment.deployment_identifier}.`,
+    };
+  }
+
+  const declaredScope: DeclaredScope = {
+    conditions: [
+      {
+        attribute_name: matchedCondition.attribute_name,
+        declared_value: matchedCondition.attribute_value,
+      },
+    ],
+  };
 
   const proposedCondition: ProposedCondition = {
     attribute_name: extraction.attribute,
@@ -119,7 +182,12 @@ export async function executeBoundedPipeline(issueKeyOrId: string): Promise<Pipe
 
   const coverage = evaluateCoverage(proposedCondition, declaredScope);
 
-  // Step 5: PACKAGE (Human gate preparation)
+  // -------------------------------------------------------------------------
+  // Step 5: PACKAGE (Human gate preparation, no write)
+  // -------------------------------------------------------------------------
+  const rawFingerprintText = `${issue.key}:${extraction.attribute}:${extraction.proposedValue}:${verifiedQuote}`;
+  const fingerprint = computeFingerprint(rawFingerprintText);
+
   const created = await repository.insertChangeIntent({
     jira_issue_id: issue.id,
     jira_issue_key: issue.key,
@@ -128,11 +196,9 @@ export async function executeBoundedPipeline(issueKeyOrId: string): Promise<Pipe
     proposed_attribute: extraction.attribute,
     proposed_value: extraction.proposedValue,
     effective_date: extraction.timing || 'Scheduled',
-    source_quoted_text:
-      extraction.valueQuote || extraction.attributeQuote || issueText.substring(0, 100),
-    content_fingerprint: `fp-${Date.now()}`,
+    source_quoted_text: verifiedQuote,
+    content_fingerprint: fingerprint,
     discovery_status: DiscoveryStatus.CANDIDATE,
-    llm_confidence: 0,
     llm_reasoning: extraction.reasoning,
     idempotency_key: `idem-${issue.key}-${extraction.attribute}`,
   });
@@ -145,7 +211,7 @@ export async function executeBoundedPipeline(issueKeyOrId: string): Promise<Pipe
       issueKey: issue.key,
       attribute: extraction.attribute,
       coverageResult: coverage.result,
-      quoteVerified,
+      quoteVerified: true,
     },
   };
 }

@@ -1,4 +1,4 @@
-# KEEL — Explicit Cuts Log
+# ANDON — Explicit Cuts Log
 
 > **Rule:** If time or verification blocks something, cut from the bottom of the cut line. Never silently drop a feature; log every cut here with the reason.
 

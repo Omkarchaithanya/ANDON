@@ -2,36 +2,11 @@ import { useState, useEffect, useCallback } from 'react';
 import { invoke } from '@forge/bridge';
 import { DiscoveryContext, ChangeIntent } from '../types';
 
-const DEFAULT_BENCHMARK_INTENTS: ChangeIntent[] = [
-  {
-    id: 'demo-intent-aisle7',
-    status: 'CANDIDATE' as any,
-    label: 'surface_finish change',
-    deployment: 'AMR-12',
-    zone: 'Aisle 7',
-    changedAttribute: 'surface_finish',
-    currentValue: 'matte_epoxy',
-    proposedValue: 'high_gloss_clear_finish',
-    sourceReference: 'Apply high-gloss clear finish to Aisle 7 next Saturday',
-    confidence: 0,
-    discoveredAt: new Date().toISOString(),
-  },
-];
-
-const DEFAULT_BENCHMARK_CONTEXT: DiscoveryContext = {
-  issueKey: 'FAC-1042',
-  plannedWorkSummary: 'Apply high-gloss clear finish to Aisle 7 next Saturday',
-  location: 'Aisle 7 (Facility Alpha)',
-  effectiveDate: 'Next Saturday',
-  lastChecked: new Date().toISOString(),
-  changeIntents: DEFAULT_BENCHMARK_INTENTS,
-};
-
 export function useDiscovery() {
-  const [context, setContext] = useState<DiscoveryContext | null>(DEFAULT_BENCHMARK_CONTEXT);
-  const [candidates, setCandidates] = useState<ChangeIntent[]>(DEFAULT_BENCHMARK_INTENTS);
+  const [context, setContext] = useState<DiscoveryContext | null>(null);
+  const [candidates, setCandidates] = useState<ChangeIntent[]>([]);
   const [isConfigured, setIsConfigured] = useState<boolean>(true);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const loadContext = useCallback(async () => {
@@ -43,15 +18,15 @@ export function useDiscovery() {
         setIsConfigured(res.isConfigured !== false);
 
         const mappedIntents: ChangeIntent[] = (res.changeIntents || []).map((ci: any) => ({
-          id: ci.id || 'demo-intent-aisle7',
+          id: ci.id || '',
           status: ci.discovery_status?.toUpperCase() || 'CANDIDATE',
-          label: `${ci.proposed_attribute || 'surface_finish'} change`,
-          deployment: ci.deployment_identifier || 'AMR-12',
-          zone: ci.zone_name || 'Aisle 7',
-          changedAttribute: ci.proposed_attribute || 'surface_finish',
-          currentValue: ci.current_value || 'matte_epoxy',
-          proposedValue: ci.proposed_value || 'high_gloss_clear_finish',
-          sourceReference: ci.source_quoted_text || 'Apply high-gloss clear finish to Aisle 7 next Saturday',
+          label: ci.proposed_attribute ? `${ci.proposed_attribute} change` : 'Unknown condition change',
+          deployment: ci.deployment_identifier || 'Unknown',
+          zone: ci.zone_name || 'Unknown',
+          changedAttribute: ci.proposed_attribute || 'Unknown',
+          currentValue: ci.current_value || 'Unknown',
+          proposedValue: ci.proposed_value || 'Unknown',
+          sourceReference: ci.source_quoted_text || 'No verbatim quote available',
           confidence: 0,
           discoveredAt: ci.created_at || new Date().toISOString(),
           dismissalReason: ci.dismissal_reason,
@@ -60,19 +35,21 @@ export function useDiscovery() {
         setContext({
           issueKey: res.issue.key,
           plannedWorkSummary: res.issue.summary,
-          location: 'Aisle 7 (Facility Alpha)',
-          effectiveDate: 'Next Saturday',
+          location: res.location || res.zone || 'Unknown',
+          effectiveDate: res.effectiveDate || 'Unknown',
           lastChecked: new Date().toISOString(),
-          changeIntents: mappedIntents.length > 0 ? mappedIntents : DEFAULT_BENCHMARK_INTENTS,
+          changeIntents: mappedIntents,
         });
-        setCandidates(mappedIntents.length > 0 ? mappedIntents : DEFAULT_BENCHMARK_INTENTS);
+        setCandidates(mappedIntents);
       } else {
-        setContext(DEFAULT_BENCHMARK_CONTEXT);
-        setCandidates(DEFAULT_BENCHMARK_INTENTS);
+        setContext(null);
+        setCandidates([]);
+        setError('No Jira issue context returned from platform.');
       }
-    } catch (_err: any) {
-      setContext(DEFAULT_BENCHMARK_CONTEXT);
-      setCandidates(DEFAULT_BENCHMARK_INTENTS);
+    } catch (err: any) {
+      setContext(null);
+      setCandidates([]);
+      setError(err?.message || 'Failed to load discovery context from Forge platform.');
     } finally {
       setLoading(false);
     }
@@ -98,17 +75,15 @@ export function useDiscovery() {
   const updateConfig = useCallback(async (siteRegistryPageId: string, defaultFollowupProjectKey: string) => {
     setLoading(true);
     try {
-      await invoke('updateAppConfig', {
-        siteRegistryPageId,
-        defaultFollowupProjectKey,
-      });
-      await loadContext();
+      await invoke('updateAppConfig', { siteRegistryPageId, defaultFollowupProjectKey });
+      setIsConfigured(true);
     } catch (err: any) {
-      setError(err?.message || 'Failed to update configuration.');
+      setError(err?.message || 'Failed to update enterprise configuration.');
+      throw err;
     } finally {
       setLoading(false);
     }
-  }, [loadContext]);
+  }, []);
 
   return {
     context,
@@ -116,7 +91,7 @@ export function useDiscovery() {
     isConfigured,
     loading,
     error,
-    refresh: loadContext,
+    loadContext,
     triggerDiscovery,
     updateConfig,
   };

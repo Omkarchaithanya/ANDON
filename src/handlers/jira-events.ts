@@ -7,6 +7,7 @@ import { ActionType, SourceType } from '../models/enums';
 import { computeFingerprint, hasContentChanged } from '../utils/content-fingerprint';
 import * as repository from '../db/repository';
 import * as jiraService from '../services/jira.service';
+import { Queue } from '@forge/events';
 
 /**
  * Handles Jira issue updated/created events.
@@ -53,6 +54,19 @@ export async function onJiraEvent(event: any, context: any): Promise<void> {
       'modified',
       newFingerprint
     );
+
+    // Enqueue event to andon-events queue for background pipeline processing
+    try {
+      const queue = new Queue({ key: 'andon-events' });
+      await queue.push({
+        issueId,
+        issueKey,
+        eventType: event?.eventType || 'jira:issue_updated',
+        enqueuedAt: new Date().toISOString(),
+      });
+    } catch (qErr: any) {
+      console.warn('[Jira Events] Could not push to andon-events queue:', qErr?.message);
+    }
   } catch (err: any) {
     console.error('Error handling Jira event:', err);
   }
