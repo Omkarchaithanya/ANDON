@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <defs>
+    <linearGradient id="andonGrad" x1="2" y1="2" x2="30" y2="30" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#EA580C" />
+      <stop offset="100%" stop-color="#F97316" />
+    </linearGradient>
+  </defs>
+  <rect width="32" height="32" rx="8" fill="#0F172A" />
+  <path d="M16 4L4 28H10L16 16L22 28H28L16 4Z" fill="url(#andonGrad)" />
+  <polygon points="12,22 20,22 16,14" fill="#0F172A" />
+</svg>
