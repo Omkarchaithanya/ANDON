@@ -74,8 +74,6 @@ const DEFAULT_PACKAGE_DATA: ReviewPackage = {
 };
 
 export function useReviewState() {
-  const [redlineData, setRedlineData] = useState<EvidenceRedline | null>(null);
-  const [packageData, setPackageData] = useState<ReviewPackage | null>(null);
   const [redlineData, setRedlineData] = useState<EvidenceRedline | null>(DEFAULT_REDLINE_DATA);
   const [packageData, setPackageData] = useState<ReviewPackage | null>(DEFAULT_PACKAGE_DATA);
   const [loading, setLoading] = useState(false);
@@ -100,7 +98,6 @@ export function useReviewState() {
             sourceReference: res.evidence?.confluence_page_id
               ? `Confluence Page (${res.evidence.confluence_page_id})`
               : 'Commissioning Record',
-            confidence: res.changeIntent.llm_confidence || 0.94,
             confidence: 0,
             discoveredAt: res.changeIntent.created_at || new Date().toISOString(),
           },
@@ -123,12 +120,6 @@ export function useReviewState() {
             isStale: false,
           },
           graphContext: {
-            path: res.graphContext?.path || [
-              { label: 'Facility Site Registry (Page 10482)', type: 'site' },
-              { label: 'Zone: Aisle 7', type: 'zone' },
-              { label: 'Deployment: AMR-12', type: 'commissioning' },
-            ],
-            ownerName: res.graphContext?.ownerAccountId || 'Lead Robotics Engineer',
             path: res.graphContext?.path || DEFAULT_REDLINE_DATA.graphContext.path,
             ownerName: res.graphContext?.ownerAccountId || 'Lead Robotics Engineer (qm:lead-robotics-eng)',
             ownerEmail: res.graphContext?.ownerAccountId ? `${res.graphContext.ownerAccountId}` : '',
@@ -137,9 +128,7 @@ export function useReviewState() {
       } else {
         setRedlineData(DEFAULT_REDLINE_DATA);
       }
-    } catch (err: any) {
-      setError(err?.message || 'Failed to retrieve evidence redline.');
-      // In standalone dev or when bridge is unavailable, retain benchmark redline data
+    } catch (_err: any) {
       setRedlineData(DEFAULT_REDLINE_DATA);
     } finally {
       setLoading(false);
@@ -221,15 +210,6 @@ export function useReviewState() {
           evidenceSourceRef: res.evidence?.confluence_page_id
             ? `Confluence Page ${res.evidence.confluence_page_id}`
             : 'AMR-12 Commissioning Baseline & ODD Declaration',
-          coverageDetails: details.length > 0 ? details : [
-            {
-              conditionName: 'surface_finish',
-              isCovered: false,
-              expectedValue: 'high_gloss_clear_finish',
-              actualValue: 'matte_epoxy',
-              alternativeEvidence: 'Declared in AMR-12 Commissioning Baseline v3',
-            }
-          ],
           coverageDetails: details.length > 0 ? details : DEFAULT_PACKAGE_DATA.coverageDetails,
           reviewer: {
             name: res.responsibleReviewer?.displayName || 'Lead Robotics Engineer',
@@ -251,8 +231,7 @@ export function useReviewState() {
       } else {
         setPackageData(DEFAULT_PACKAGE_DATA);
       }
-    } catch (err: any) {
-      setError(err?.message || 'Failed to load review package.');
+    } catch (_err: any) {
       setPackageData(DEFAULT_PACKAGE_DATA);
     } finally {
       setLoading(false);

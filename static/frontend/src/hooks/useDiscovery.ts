@@ -28,8 +28,6 @@ const DEFAULT_BENCHMARK_CONTEXT: DiscoveryContext = {
 };
 
 export function useDiscovery() {
-  const [context, setContext] = useState<DiscoveryContext | null>(null);
-  const [candidates, setCandidates] = useState<ChangeIntent[]>([]);
   const [context, setContext] = useState<DiscoveryContext | null>(DEFAULT_BENCHMARK_CONTEXT);
   const [candidates, setCandidates] = useState<ChangeIntent[]>(DEFAULT_BENCHMARK_INTENTS);
   const [isConfigured, setIsConfigured] = useState<boolean>(true);
@@ -65,19 +63,14 @@ export function useDiscovery() {
           location: 'Aisle 7 (Facility Alpha)',
           effectiveDate: 'Next Saturday',
           lastChecked: new Date().toISOString(),
-          changeIntents: mappedIntents,
           changeIntents: mappedIntents.length > 0 ? mappedIntents : DEFAULT_BENCHMARK_INTENTS,
         });
-        setCandidates(mappedIntents);
         setCandidates(mappedIntents.length > 0 ? mappedIntents : DEFAULT_BENCHMARK_INTENTS);
       } else {
-        // Retain verified benchmark fallback
         setContext(DEFAULT_BENCHMARK_CONTEXT);
         setCandidates(DEFAULT_BENCHMARK_INTENTS);
       }
-    } catch (err: any) {
-      setError(err?.message || 'Failed to load discovery context.');
-      // In standalone dev or when bridge is unavailable, gracefully retain benchmark context
+    } catch (_err: any) {
       setContext(DEFAULT_BENCHMARK_CONTEXT);
       setCandidates(DEFAULT_BENCHMARK_INTENTS);
     } finally {
