@@ -1,7 +1,12 @@
 app:
   id: ari:cloud:ecosystem::app/3a5890e3-78e3-4364-8333-c0d4f365f59a
   runtime:
-    name: nodejs22.x
+    name: nodejs24.x
+  compatibility:
+    jira:
+      required: true
+    confluence:
+      required: false
   description: >
     Shadow-change radar for robotized workplaces. Discovers when facilities
     maintenance requests might affect robot deployments whose commissioning
@@ -16,6 +21,12 @@ modules:
         function: resolver
       icon: https://developer.atlassian.com/platform/forge/images/icons/issue-panel-icon.svg
 
+  jira:workflowValidator:
+    - key: block-release-on-hold
+      name: Block release while ANDON clearance is HOLD
+      function: block-release-fn
+      errorMessage: "ANDON clearance is HOLD for this issue. Record an override to transition."
+
   sql:
     - key: main
       engine: mysql
@@ -23,11 +34,13 @@ modules:
   llm:
     - key: andon-extractor
       model:
-        - claude
+        - claude-sonnet-4-6
 
   function:
     - key: resolver
       handler: index.handler
+    - key: block-release-fn
+      handler: index.blockRelease
     - key: consumer-handler
       handler: index.processQueueEvent
     - key: install-handler

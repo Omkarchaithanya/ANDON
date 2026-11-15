@@ -80,7 +80,13 @@ export const ReviewPackage: React.FC<ReviewPackageProps> = ({
           </button>
         </div>
         <div className="andon-card" style={{ marginTop: '20px', textAlign: 'center', padding: '40px' }}>
-          <p style={{ color: '#64748B' }}>Loading review package from platform...</p>
+          <p style={{ color: '#64748B', marginBottom: '12px' }}>Loading review package from platform...</p>
+          <button
+            className="btn btn-outline-subtle btn-sm"
+            onClick={() => reviewDecisionId && loadReviewPackage(reviewDecisionId)}
+          >
+            ↻ Retry Resolver Call
+          </button>
         </div>
       </div>
     );
@@ -95,7 +101,16 @@ export const ReviewPackage: React.FC<ReviewPackageProps> = ({
           </button>
         </div>
         <div className="redline-alert-box alert-error" style={{ marginTop: '20px' }}>
-          <strong>Unknown:</strong> {error || 'No review package found for this decision. Evaluation requires confirmed candidate and accessible evidence.'}
+          <p><strong>Unknown:</strong> {error || 'No review package found for this decision. Evaluation requires confirmed candidate and accessible evidence.'}</p>
+          {reviewDecisionId && (
+            <button
+              className="btn btn-outline-subtle btn-sm"
+              style={{ marginTop: '10px' }}
+              onClick={() => loadReviewPackage(reviewDecisionId)}
+            >
+              ↻ Retry Resolver Call
+            </button>
+          )}
         </div>
       </div>
     );

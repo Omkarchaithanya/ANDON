@@ -59,7 +59,17 @@ export async function executeBoundedPipeline(
   const plainDescription = adfToPlainText(rawDescription);
   const issueText = plainDescription ? `${issueSummary}\n${plainDescription}`.trim() : issueSummary.trim();
 
-  const extraction = await extractChangeAttributes(issueText);
+  let extraction;
+  try {
+    extraction = await extractChangeAttributes(issueText);
+  } catch (err: any) {
+    return {
+      status: 'UNKNOWN',
+      stepReached: PipelineStep.INTAKE,
+      reason: `LLM extraction failed: ${err?.message || 'unknown error'}`,
+    };
+  }
+
   if (!extraction || !extraction.attribute || !extraction.proposedValue) {
     return {
       status: 'NO_CHANGE_FOUND',

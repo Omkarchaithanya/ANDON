@@ -5,29 +5,10 @@
 
 import { ValidationError } from '../utils/errors';
 import { isNonEmptyString } from '../utils/validation';
-
-/** Allowed physical condition attributes for the MVP */
-export const ALLOWED_ATTRIBUTES: Record<string, string[]> = {
-  surface_finish: [
-    'matte_epoxy',
-    'high_gloss_clear_finish',
-    'polished_concrete',
-    'sealed_concrete',
-    'anti_slip_coating',
-  ],
-  lighting_type: [
-    'standard_warehouse_led',
-    'high_intensity_discharge',
-    'fluorescent_t5',
-    'natural_skylight',
-  ],
-  ceiling_height: ['standard_6m', 'high_bay_12m', 'low_clearance_4m'],
-  floor_marking: ['standard_yellow_stripes', 'barcoded_reflective_tape', 'qr_grid'],
-  ambient_temperature: ['ambient_20c', 'cold_storage_4c', 'freezer_minus_20c'],
-};
+import { defaultConditionRegistry } from '../domain/condition-registry';
 
 /**
- * Validates condition attribute and value against allowed dictionary.
+ * Validates condition attribute and value against the declared condition registry.
  */
 export function validateConditionSchema(
   attributeName: string,
@@ -37,19 +18,23 @@ export function validateConditionSchema(
     return { isValid: false, error: 'Attribute name must be a non-empty string.' };
   }
 
-  const allowedValues = ALLOWED_ATTRIBUTES[attributeName];
-  if (!allowedValues) {
+  const fam = defaultConditionRegistry.get(attributeName);
+  if (!fam) {
+    const supported = defaultConditionRegistry.getAll().map((f) => f.attribute).join(', ');
     return {
       isValid: false,
-      error: `Unsupported attribute "${attributeName}". Supported attributes: ${Object.keys(ALLOWED_ATTRIBUTES).join(', ')}.`,
+      error: `Unsupported attribute "${attributeName}". Supported attributes: ${supported}.`,
     };
   }
 
-  if (attributeValue !== undefined && !allowedValues.includes(attributeValue)) {
-    return {
-      isValid: false,
-      error: `Unsupported value "${attributeValue}" for attribute "${attributeName}". Supported values: ${allowedValues.join(', ')}.`,
-    };
+  if (attributeValue !== undefined) {
+    const res = defaultConditionRegistry.validateExtractedCandidate({
+      attribute: attributeName,
+      proposedValue: attributeValue,
+    });
+    if (!res.isValid) {
+      return { isValid: false, error: res.error };
+    }
   }
 
   return { isValid: true };

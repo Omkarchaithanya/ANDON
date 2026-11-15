@@ -260,8 +260,8 @@ export function compareDeclaredScope(
   return {
     outcome: 'Prospective coverage gap',
     findingSentence:
-      family.displayTemplates?.gapTemplate ||
-      `The selected baseline does not establish coverage of the planned ${resolvedProposed} condition.`,
+      family.displayTemplates?.gapTemplate.replace('{value}', resolvedProposed) ||
+      `The selected baseline does not establish coverage of the proposed ${resolvedProposed} condition.`,
     attribute: family.attribute,
     proposedValue: resolvedProposed,
     declaredValues,

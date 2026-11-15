@@ -56,11 +56,11 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({
   const activeFloor = floors.find((f) => f.id === activeFloorId) || floors[0];
 
   const navItems: Array<{ id: ViewMode | 'andon-workflow'; label: string; shortcut: string }> = [
-    { id: 'unified', label: 'Unified Command', shortcut: '1' },
-    { id: 'floorplan', label: 'Floorplan Twin', shortcut: '2' },
-    { id: 'agent-monitor', label: 'AI Agents', shortcut: '3' },
-    { id: 'field-pwa', label: 'Field PWA', shortcut: '4' },
-    { id: 'andon-workflow', label: 'Safety Radar (Jira)', shortcut: '5' },
+    { id: 'andon-workflow', label: 'Safety Radar (Jira)', shortcut: '1' },
+    { id: 'floorplan', label: '[Harness] Floorplan Twin', shortcut: '2' },
+    { id: 'agent-monitor', label: '[Harness] AI Agents', shortcut: '3' },
+    { id: 'field-pwa', label: '[Harness] Field PWA', shortcut: '4' },
+    { id: 'unified', label: '[Harness] Unified Command', shortcut: '5' },
   ];
 
   return (

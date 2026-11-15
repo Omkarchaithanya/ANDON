@@ -73,6 +73,13 @@ export const EvidenceRedline: React.FC<EvidenceRedlineProps> = ({
         </div>
         <div className="andon-card" style={{ marginTop: '20px', textAlign: 'center', padding: '40px' }}>
           <p style={{ color: '#64748B' }}>Loading evidence redline from platform...</p>
+          <button
+            className="btn btn-outline-subtle btn-sm"
+            style={{ marginTop: '12px' }}
+            onClick={() => loadRedline(changeIntentId)}
+          >
+            ↻ Retry Resolver Call
+          </button>
         </div>
       </div>
     );

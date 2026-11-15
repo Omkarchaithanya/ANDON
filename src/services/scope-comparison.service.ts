@@ -20,6 +20,7 @@ import {
 } from '../models/entities';
 import { ValidationError } from '../utils/errors';
 import { isNonEmptyString } from '../utils/validation';
+import { defaultConditionRegistry } from '../domain/condition-registry';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -292,11 +293,8 @@ function buildScopeLookup(scope: DeclaredScope): Map<string, string> {
       });
 
       const explanation =
-        proposedCondition.proposed_value.toLowerCase().includes('high_gloss') ||
-        proposedCondition.proposed_value.toLowerCase().includes('high-gloss')
-          ? 'The selected baseline does not establish coverage of the planned high-gloss condition.'
-          : `The selected baseline does not establish coverage of the proposed "${proposedCondition.proposed_value}" condition ` +
-            `(declared: "${declaredValue}" for "${proposedCondition.attribute_name}"). This is a prospective coverage gap that requires review.`;
+        `The selected baseline does not establish coverage of the proposed "${proposedCondition.proposed_value}" condition ` +
+        `(declared: "${declaredValue}" for "${proposedCondition.attribute_name}"). This is a prospective coverage gap that requires review.`;
 
       return {
         result: CoverageResult.GAP,
@@ -328,20 +326,25 @@ function buildScopeLookup(scope: DeclaredScope): Map<string, string> {
       const normProposed = normalise(proposedValue);
       const normDeclared = normalise(declaredValue);
 
-      if (normProposed === normDeclared) {
+      const resolvedProposed =
+        defaultConditionRegistry.resolveAllowedValue(proposedAttribute, proposedValue) ?? normProposed;
+      const resolvedDeclared =
+        defaultConditionRegistry.resolveAllowedValue(declaredAttribute, declaredValue) ?? normDeclared;
+
+      if (resolvedProposed === resolvedDeclared) {
         return {
           matches: true,
           reason:
-            `Values match: proposed "${proposedValue}" equals declared "${declaredValue}" ` +
-            `(after normalisation).`,
+            `Values match: proposed "${proposedValue}" matches declared "${declaredValue}" ` +
+            `(resolved: "${resolvedProposed}").`,
         };
       }
 
       return {
         matches: false,
         reason:
-          `Values differ: proposed "${proposedValue}" (normalised: "${normProposed}") ` +
-          `does not equal declared "${declaredValue}" (normalised: "${normDeclared}").`,
+          `Values differ: proposed "${proposedValue}" (resolved: "${resolvedProposed}") ` +
+          `does not equal declared "${declaredValue}" (resolved: "${resolvedDeclared}").`,
       };
     }
 

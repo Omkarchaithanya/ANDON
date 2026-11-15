@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { invoke } from '@forge/bridge';
+import { invokeWithTimeout } from './useResolver';
 import { DiscoveryContext, ChangeIntent } from '../types';
 
 export function useDiscovery() {
@@ -13,7 +13,7 @@ export function useDiscovery() {
     setLoading(true);
     setError(null);
     try {
-      const res: any = await invoke('getDiscoveryContext');
+      const res: any = await invokeWithTimeout('getDiscoveryContext');
       if (res && res.issue) {
         setIsConfigured(res.isConfigured !== false);
 
@@ -63,7 +63,7 @@ export function useDiscovery() {
     if (!context?.issueKey) return;
     setLoading(true);
     try {
-      await invoke('runDiscovery', { issueId: context.issueKey });
+      await invokeWithTimeout('runDiscovery', { issueId: context.issueKey });
       await loadContext();
     } catch (err: any) {
       setError(err?.message || 'Failed to run discovery.');
@@ -75,7 +75,7 @@ export function useDiscovery() {
   const updateConfig = useCallback(async (siteRegistryPageId: string, defaultFollowupProjectKey: string) => {
     setLoading(true);
     try {
-      await invoke('updateAppConfig', { siteRegistryPageId, defaultFollowupProjectKey });
+      await invokeWithTimeout('updateAppConfig', { siteRegistryPageId, defaultFollowupProjectKey });
       setIsConfigured(true);
     } catch (err: any) {
       setError(err?.message || 'Failed to update enterprise configuration.');

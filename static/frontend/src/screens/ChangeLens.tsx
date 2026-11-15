@@ -18,6 +18,7 @@ export const ChangeLens: React.FC<ChangeLensProps> = ({
     candidates,
     loading,
     error,
+    loadContext,
     triggerDiscovery,
   } = useDiscovery();
 
@@ -44,8 +45,13 @@ export const ChangeLens: React.FC<ChangeLensProps> = ({
   return (
     <div className="change-lens-container" aria-label="Change Intake Lens Dashboard">
       {error && (
-        <div className="redline-alert-box alert-error" style={{ marginBottom: '16px' }}>
-          <strong>Discovery Notice:</strong> {error}
+        <div className="redline-alert-box alert-error" style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <strong>Discovery Notice:</strong> {error}
+          </div>
+          <button className="btn btn-outline-subtle btn-sm" onClick={loadContext} style={{ marginLeft: '12px', flexShrink: 0 }}>
+            ↻ Retry Resolver Call
+          </button>
         </div>
       )}
 

@@ -69,10 +69,10 @@ export const FloorPlanLocator: React.FC<FloorPlanLocatorProps> = ({
             </text>
 
             {/* Deployment badge */}
-            <g transform="translate(230, 28)">
-              <rect x="-60" y="-8" width="120" height="18" rx="9" fill={isKnown ? '#EA580C' : '#64748B'} />
-              <circle cx="-50" cy="1" r="3" fill="#FFFFFF" />
-              <text x="-40" y="5" fill="#FFFFFF" fontSize="9" fontWeight="700">
+            <g transform="translate(230, 22)">
+              <rect x="-85" y="-10" width="170" height="20" rx="10" fill={isKnown ? '#EA580C' : '#64748B'} />
+              <circle cx="-72" cy="0" r="3.5" fill="#FFFFFF" />
+              <text x="-62" y="3.5" fill="#FFFFFF" fontSize="9" fontWeight="700">
                 {displayDeployment}
               </text>
             </g>

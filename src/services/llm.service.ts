@@ -184,9 +184,14 @@ async function callLlmAndParse<T>(
       let rawResponse: string = '';
 
       if (typeof (forgeLlm as any).chat === 'function') {
+        const omitTemp =
+          modelId.includes('-5') ||
+          modelId.includes('4-7') ||
+          modelId.includes('4-8') ||
+          modelId.includes('opus-4');
+
         const response = await (forgeLlm as any).chat({
           model: modelId,
-          temperature: 0,
           messages: [
             {
               role: 'system',
@@ -197,6 +202,7 @@ async function callLlmAndParse<T>(
               content: [{ type: 'text', text: userMessage }],
             },
           ],
+          ...(omitTemp ? {} : { temperature: 0 }),
         });
 
         const choice = response?.choices?.[0];
@@ -207,17 +213,8 @@ async function callLlmAndParse<T>(
         } else {
           rawResponse = (response as any)?.content || '';
         }
-      } else if (typeof (forgeLlm as any).forge?.llm?.generate === 'function') {
-        const response = await (forgeLlm as any).forge.llm.generate({
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userMessage },
-          ],
-          responseFormat: { type: 'json_object' },
-        });
-        rawResponse = response.content;
       } else {
-        throw new Error('No supported chat invocation method available on @forge/llm');
+        throw new ExternalApiError('@forge/llm chat() is not available — check the llm module is declared and the app is upgraded');
       }
 
       let cleaned = rawResponse.trim();

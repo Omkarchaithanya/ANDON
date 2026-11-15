@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { invoke } from '@forge/bridge';
+import { invokeWithTimeout } from './useResolver';
 import { EvidenceRedline, ReviewPackage } from '../types';
 
 export function useReviewState() {
@@ -17,7 +17,7 @@ export function useReviewState() {
     setLoading(true);
     setError(null);
     try {
-      const res: any = await invoke('getEvidenceRedline', { changeIntentId });
+      const res: any = await invokeWithTimeout('getEvidenceRedline', { changeIntentId });
       if (res && res.changeIntent) {
         setRedlineData({
           changeIntent: {
@@ -81,7 +81,7 @@ export function useReviewState() {
       setLoading(true);
       setError(null);
       try {
-        const res: any = await invoke('confirmRelationship', {
+        const res: any = await invokeWithTimeout('confirmRelationship', {
           changeIntentId,
           deploymentId,
           confirmedAttribute: attribute,
@@ -107,7 +107,7 @@ export function useReviewState() {
     setLoading(true);
     setError(null);
     try {
-      await invoke('dismissRelationship', { changeIntentId, reason });
+      await invokeWithTimeout('dismissRelationship', { changeIntentId, reason });
     } catch (err: any) {
       setError(err?.message || 'Failed to dismiss relationship.');
       throw err;
@@ -125,7 +125,7 @@ export function useReviewState() {
     setLoading(true);
     setError(null);
     try {
-      const res: any = await invoke('getReviewPackage', { reviewDecisionId });
+      const res: any = await invokeWithTimeout('getReviewPackage', { reviewDecisionId });
       if (res && res.reviewDecision) {
         const coverageDetail = res.coverageDetail || {};
         const unmatched = coverageDetail.unmatched_conditions || [];
@@ -196,7 +196,7 @@ export function useReviewState() {
       setLoading(true);
       setError(null);
       try {
-        return await invoke('approveFollowup', {
+        return await invokeWithTimeout('approveFollowup', {
           reviewDecisionId,
           targetProjectKey: projectKey,
           summary,

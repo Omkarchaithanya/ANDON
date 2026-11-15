@@ -177,7 +177,7 @@ export const defaultConditionRegistry = new ConditionRegistry([
     },
     comparisonMode: 'EXACT',
     displayTemplates: {
-      gapTemplate: 'The selected baseline does not establish coverage of the planned high-gloss condition.',
+      gapTemplate: 'The selected baseline does not establish coverage of the proposed {value} condition.',
       coveredTemplate: 'Proposed value "{value}" matches declared baseline scope.',
       unknownTemplate: 'Attribute "surface_finish" baseline scope is unknown.',
     },

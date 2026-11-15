@@ -59,10 +59,12 @@ export function App() {
   // Load persistent store state
   const initial = useMemo(() => loadInitialStoreState(), []);
 
-  // Navigation & Theme
-  const [currentView, setCurrentView] = useState<ViewMode | 'andon-workflow'>('unified');
+  // Navigation & Theme — Default strictly to the real product (ANDON Safety Radar)
+  const [currentView, setCurrentView] = useState<ViewMode | 'andon-workflow'>('andon-workflow');
   const [theme, setTheme] = useState<ThemeMode>('dark');
   const [searchQuery, setSearchQuery] = useState<string>('');
+
+  const isDemoHarness = Boolean(import.meta.env.VITE_DEMO_HARNESS);
 
   // Floorplan & IoT Assets State
   const [floors, setFloors] = useState<BuildingFloor[]>(initial.floors);
@@ -527,7 +529,7 @@ export function App() {
   };
 
   return (
-    <ErrorBoundary fallbackTitle="Application Error" onReset={() => setCurrentView('unified')}>
+    <ErrorBoundary fallbackTitle="Application Error" onReset={() => setCurrentView('andon-workflow')}>
       <div
         style={{
           width: '100vw',
@@ -540,26 +542,28 @@ export function App() {
           position: 'relative',
         }}
       >
-        {/* Persistent Executive Top Navigation Bar */}
-        <TopNavBar
-          currentView={currentView}
-          onSelectView={(v) => setCurrentView(v)}
-          theme={theme}
-          onToggleTheme={handleToggleTheme}
-          floors={floors}
-          activeFloorId={activeFloorId}
-          onSelectFloor={setActiveFloorId}
-          onAddFloor={handleAddFloorClick}
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          onSave={() => showToast('All floor layouts, zones, and agent telemetry saved to persistent storage ✓')}
-          onOpenCreateModal={() => setIsCreateModalOpen(true)}
-        />
+        {/* Persistent Executive Top Navigation Bar (Gated to Demo Harness) */}
+        {isDemoHarness && (
+          <TopNavBar
+            currentView={currentView}
+            onSelectView={(v) => setCurrentView(v)}
+            theme={theme}
+            onToggleTheme={handleToggleTheme}
+            floors={floors}
+            activeFloorId={activeFloorId}
+            onSelectFloor={setActiveFloorId}
+            onAddFloor={handleAddFloorClick}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            onSave={() => showToast('All floor layouts, zones, and agent telemetry saved to persistent storage ✓')}
+            onOpenCreateModal={() => setIsCreateModalOpen(true)}
+          />
+        )}
 
         {/* View Routing */}
-        <div style={{ flex: 1, height: 'calc(100% - 52px)', overflow: 'hidden', display: 'flex' }}>
+        <div style={{ flex: 1, height: isDemoHarness ? 'calc(100% - 52px)' : '100%', overflow: 'hidden', display: 'flex' }}>
           {/* 1. Unified Command View */}
-          {currentView === 'unified' && (
+          {isDemoHarness && currentView === 'unified' && (
             <UnifiedCommandView
               floor={activeFloor}
               agents={agents}
@@ -589,7 +593,7 @@ export function App() {
           )}
 
           {/* 2. Desktop Floorplan Digital Twin */}
-          {currentView === 'floorplan' && (
+          {isDemoHarness && currentView === 'floorplan' && (
             <FloorplanDigitalTwinView
               floor={activeFloor}
               unassignedAssets={unassignedAssets}
@@ -614,7 +618,7 @@ export function App() {
           )}
 
           {/* 3. ANDON AI Agent Monitoring Dashboard */}
-          {currentView === 'agent-monitor' && (
+          {isDemoHarness && currentView === 'agent-monitor' && (
             <div style={{ flex: 1, display: 'flex', height: '100%', overflow: 'hidden' }}>
               <div style={{ flex: 1, height: '100%', overflowY: 'auto' }}>
                 <MeelyAgentDashboard
@@ -647,7 +651,7 @@ export function App() {
           )}
 
           {/* 4. Mobile / Tablet Field Technician PWA */}
-          {currentView === 'field-pwa' && (
+          {isDemoHarness && currentView === 'field-pwa' && (
             <FieldTechnicianPWA
               floor={activeFloor}
               selectedAsset={selectedAsset}

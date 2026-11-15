@@ -20,6 +20,7 @@ import * as idempotencyService from '../services/idempotency.service';
 import * as configService from '../services/config.service';
 import { executeBoundedPipeline } from '../agent/brain';
 import { adfToPlainText } from '../utils/adf';
+import { Queue } from '@forge/events';
 
 /**
  * Retrieves the live Jira issue context and any existing change intents for this ticket.
@@ -82,7 +83,7 @@ export async function handleGetDiscoveryContext(payload: any, context: any): Pro
 export async function handleRunDiscovery(
   payload: any,
   context: any
-): Promise<{ candidates: ChangeIntent[]; message: string }> {
+): Promise<{ candidates: ChangeIntent[]; message: string; pending?: boolean }> {
   const issueId = context?.extension?.issue?.id || payload?.issueId;
   if (!isNonEmptyString(issueId)) {
     throw new ValidationError('Valid Jira Issue ID is required to run discovery.');
@@ -111,37 +112,64 @@ export async function handleRunDiscovery(
     title: p.title || p.page_id,
   }));
 
-  const pipelineResult = await executeBoundedPipeline(issue.id, preloadedPages, context?.cloudId);
-
-  if (pipelineResult.status === 'COMPLETED' && pipelineResult.changeIntentId) {
-    const candidate = await repository.getChangeIntentById(pipelineResult.changeIntentId);
+  // C5: Async execution via @forge/events queue to prevent Forge 25s timeout
+  try {
+    const eventQueue = new Queue({ key: 'andon-events' });
+    await eventQueue.push({
+      issueKey: issue.id,
+      graphPages: preloadedPages,
+      cloudId: context?.cloudId,
+    } as any);
 
     await repository.insertAuditLog({
       action_type: ActionType.DISCOVERY_RUN,
       entity_type: 'jira_issue',
       entity_id: issue.id,
       actor_account_id: user.accountId,
-      detail: { candidatesDiscovered: candidate ? 1 : 0 },
+      detail: { status: 'ENQUEUED', candidateCount: 0 },
     });
 
     return {
-      candidates: candidate ? [candidate] : [],
-      message: 'Discovery complete. Identified 1 candidate relationship.',
+      candidates: [],
+      message: 'Discovery started in background. Refreshing in a few seconds.',
+      pending: true,
+    };
+  } catch (_queueErr: any) {
+    // Graceful fallback for local test execution without live Forge Queue daemon
+    const pipelineResult = await executeBoundedPipeline(issue.id, preloadedPages, context?.cloudId);
+
+    if (pipelineResult.status === 'COMPLETED' && pipelineResult.changeIntentId) {
+      const candidate = await repository.getChangeIntentById(pipelineResult.changeIntentId);
+
+      await repository.insertAuditLog({
+        action_type: ActionType.DISCOVERY_RUN,
+        entity_type: 'jira_issue',
+        entity_id: issue.id,
+        actor_account_id: user.accountId,
+        detail: { candidatesDiscovered: candidate ? 1 : 0 },
+      });
+
+      return {
+        candidates: candidate ? [candidate] : [],
+        message: 'Discovery complete. Identified 1 candidate relationship.',
+        pending: false,
+      };
+    }
+
+    await repository.insertAuditLog({
+      action_type: ActionType.DISCOVERY_RUN,
+      entity_type: 'jira_issue',
+      entity_id: issue.id,
+      actor_account_id: user.accountId,
+      detail: { candidatesDiscovered: 0, reason: pipelineResult.reason },
+    });
+
+    return {
+      candidates: [],
+      message: pipelineResult.reason || 'No candidate relationship identified.',
+      pending: false,
     };
   }
-
-  await repository.insertAuditLog({
-    action_type: ActionType.DISCOVERY_RUN,
-    entity_type: 'jira_issue',
-    entity_id: issue.id,
-    actor_account_id: user.accountId,
-    detail: { candidatesDiscovered: 0, reason: pipelineResult.reason },
-  });
-
-  return {
-    candidates: [],
-    message: pipelineResult.reason || 'No candidate relationship identified.',
-  };
 }
 
 /**

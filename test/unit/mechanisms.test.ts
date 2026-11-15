@@ -99,7 +99,7 @@ describe('ANDON Generic Algorithmic Mechanisms', () => {
 
       expect(res.outcome).toBe('Prospective coverage gap');
       expect(res.findingSentence).toBe(
-        'The selected baseline does not establish coverage of the planned high-gloss condition.'
+        'The selected baseline does not establish coverage of the proposed high_gloss_clear_finish condition.'
       );
     });
 
