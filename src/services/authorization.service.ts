@@ -300,8 +300,8 @@ export async function canAccessSource(
 /**
  * Gets the configured reviewer policy from app storage.
  *
- * Falls back to the default policy (`any_authenticated`) if no
- * policy is configured.
+ * Falls back to the default fail-closed policy (`configured_list` with empty allowed list)
+ * if no policy is configured.
  *
  * @returns The configured ReviewerPolicy.
  */

@@ -1,33 +1,37 @@
 /**
  * @file test/unit/quote-verification.test.ts
- * @description Verifies that all quoted spans in ANDON are exact verbatim substrings
- * of the authoritative SPEC source records.
+ * @description Verifies quote grounding behavior against live source buffers:
+ * exact NFKC substrings pass, paraphrased or altered quotes fail closed.
  */
 
+import { verifyExactQuote } from '../../src/utils/quote-verifier';
+
 describe('Authoritative Source Quote Verification', () => {
-  const AUTHORITATIVE_JIRA_QUOTE =
-    'Apply high-gloss clear finish to Aisle 7 next Saturday';
+  const JIRA_SOURCE_TEXT =
+    'Facilities Work Order #7142: Scheduled floor resurfacing on Aisle 7. Planned work: Apply high-gloss clear finish to Aisle 7 next Saturday starting at 08:00 UTC.';
 
-  const AUTHORITATIVE_CONFLUENCE_QUOTE =
-    'Observed route/perception results apply to AMR-12, camera configuration C4, Aisle 7, existing matte epoxy finish.';
+  const CONFLUENCE_SOURCE_PAGE =
+    '<h1>AMR Commissioning Baseline</h1><p>Observed route/perception results apply to AMR-12, camera configuration C4, Aisle 7, existing matte epoxy finish.</p>';
 
-  const AUTHORITATIVE_FINDING =
-    'The selected baseline does not establish coverage of the planned high-gloss condition.';
-
-  test('Facilities ticket quote matches SPEC verbatim', () => {
-    expect(AUTHORITATIVE_JIRA_QUOTE).toBe('Apply high-gloss clear finish to Aisle 7 next Saturday');
+  test('Facilities ticket quote matches verbatim substring', () => {
+    const quote = 'Apply high-gloss clear finish to Aisle 7 next Saturday';
+    const result = verifyExactQuote(JIRA_SOURCE_TEXT, quote);
+    expect(result.verified).toBe(true);
+    expect(result.startIndex).toBeGreaterThanOrEqual(0);
+    expect(result.endIndex).toBe(result.startIndex + quote.length);
   });
 
-  test('Commissioning record quote matches SPEC verbatim', () => {
-    expect(AUTHORITATIVE_CONFLUENCE_QUOTE).toBe(
-      'Observed route/perception results apply to AMR-12, camera configuration C4, Aisle 7, existing matte epoxy finish.'
-    );
+  test('Commissioning record quote matches verbatim substring', () => {
+    const quote = 'Observed route/perception results apply to AMR-12, camera configuration C4, Aisle 7, existing matte epoxy finish.';
+    const result = verifyExactQuote(CONFLUENCE_SOURCE_PAGE, quote);
+    expect(result.verified).toBe(true);
+    expect(result.startIndex).toBeGreaterThanOrEqual(0);
   });
 
-  test('Coverage finding sentence matches SPEC verbatim', () => {
-    expect(AUTHORITATIVE_FINDING).toBe(
-      'The selected baseline does not establish coverage of the planned high-gloss condition.'
-    );
+  test('Paraphrased quote is rejected fail-closed', () => {
+    const paraphrase = 'Apply high gloss clear coating to Aisle 7 next Saturday';
+    const result = verifyExactQuote(JIRA_SOURCE_TEXT, paraphrase);
+    expect(result.verified).toBe(false);
   });
 });
 

@@ -38,6 +38,21 @@ export async function runLlmSmokeTest(): Promise<{ success: boolean; model: stri
   const rawText = typeof content === 'string' ? content : JSON.stringify(content);
   console.log('[LLM Smoke] Received live response:', rawText);
 
+  if (!rawText || !rawText.trim()) {
+    throw new Error('LLM response content was empty.');
+  }
+
+  let parsed: any;
+  try {
+    parsed = JSON.parse(rawText.replace(/```(?:json)?\s*([\s\S]*?)\s*```/, '$1').trim());
+  } catch (err: any) {
+    throw new Error(`LLM smoke response failed JSON parsing: ${err?.message}`);
+  }
+
+  if (parsed?.status !== 'ok') {
+    throw new Error(`LLM smoke response content missing expected status "ok", got: ${JSON.stringify(parsed)}`);
+  }
+
   return {
     success: true,
     model: modelToUse,

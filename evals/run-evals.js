@@ -232,7 +232,7 @@ const EVAL_CASES = [
   },
 ];
 
-function runEvaluation() {
+async function runEvaluation() {
   console.log('======================================================================');
   console.log('🧪 ANDON SPLIT EVALUATION HARNESS (DEV + TEST SPLITS)');
   console.log('======================================================================\n');
@@ -306,6 +306,29 @@ function runEvaluation() {
   console.log(`Held-Out Test Split: ${testPassed}/8 (${((testPassed/8)*100).toFixed(1)}%)`);
   console.log(`Total Accuracy: ${passed}/${EVAL_CASES.length} (${((passed/EVAL_CASES.length)*100).toFixed(1)}%)`);
   console.log('======================================================================\n');
+
+  // Tier 2: Optional Live LLM-in-the-loop extraction tier (C25)
+  if (process.env.RUN_LLM_EVALS === '1' || process.argv.includes('--llm')) {
+    console.log('🔬 RUNNING TIER 2: LIVE LLM EXTRACTION EVALS');
+    const { extractChangeAttributes } = require('../src/services/llm.service');
+    let extractionPassed = 0;
+    for (const c of EVAL_CASES.filter((c) => c.expectedOutcome !== 'Unknown')) {
+      try {
+        const ext = await extractChangeAttributes(c.ticketText);
+        if (ext.attribute === c.attribute && ext.proposedValue === c.proposedValue) {
+          extractionPassed++;
+          console.log(`[LLM TIER 2] ${c.id}: ✓ Extracted attribute="${ext.attribute}", value="${ext.proposedValue}"`);
+        } else {
+          console.log(`[LLM TIER 2] ${c.id}: ✗ Mismatch attribute="${ext?.attribute}" (expected "${c.attribute}")`);
+        }
+      } catch (err) {
+        console.log(`[LLM TIER 2] ${c.id}: ✗ Extraction threw error: ${err.message}`);
+      }
+    }
+    console.log(`Tier 2 Precision: ${extractionPassed} evaluated.\n`);
+  } else {
+    console.log('[TIER 2 NOTICE] Live LLM extraction evaluation tier ready (run with RUN_LLM_EVALS=1 in live staging).');
+  }
 
   if (passed !== EVAL_CASES.length) {
     process.exit(1);

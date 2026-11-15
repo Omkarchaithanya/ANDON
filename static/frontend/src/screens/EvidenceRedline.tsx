@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useReviewState } from '../hooks/useReviewState';
+import { StaleRibbon } from '../components/StaleRibbon';
 
 interface EvidenceRedlineProps {
   changeIntentId: string;
@@ -122,6 +123,17 @@ export const EvidenceRedline: React.FC<EvidenceRedlineProps> = ({
       {(error || confirmError) && (
         <div className="redline-alert-box alert-error">
           <strong>Verification Notice:</strong> {error || confirmError}
+        </div>
+      )}
+
+      {baseline.isStale && (
+        <div style={{ marginBottom: '16px' }}>
+          <StaleRibbon
+            sourceRef={baseline.sourceRef}
+            reviewedVersion={baseline.version}
+            currentVersion={baseline.version + 1}
+            onRefreshReview={() => loadRedline(changeIntentId)}
+          />
         </div>
       )}
 

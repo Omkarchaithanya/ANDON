@@ -40,9 +40,9 @@ export function useReviewState() {
           proposedSource: {
             text: res.changeIntent.source_quoted_text || 'No verbatim quote recorded',
             sourceRef: res.changeIntent.jira_issue_key || 'Unknown Issue',
-            version: 1,
+            version: res.changeIntent.source_version || 1,
             lastChecked: new Date().toISOString(),
-            isStale: false,
+            isStale: Boolean(res.isStale || res.staleness?.jiraStale),
           },
           commissionedSource: {
             text: res.evidence?.source_quoted_text || 'No baseline quote available',
@@ -51,7 +51,7 @@ export function useReviewState() {
               : 'Unknown Commissioning Document',
             version: res.evidence?.confluence_page_version || 1,
             lastChecked: new Date().toISOString(),
-            isStale: false,
+            isStale: Boolean(res.isStale || res.staleness?.confluenceStale),
           },
           graphContext: {
             path: res.graphContext?.path || [],
