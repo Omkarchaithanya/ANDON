@@ -23,15 +23,15 @@ export async function handleApproveFollowup(payload: any, context: any): Promise
   validateFollowupApprovalInput(payload);
   const { reviewDecisionId, targetProjectKey, summary, description } = payload;
 
-  const user = await authService.getCurrentUser();
-  const canApprove = await authService.canApproveFollowup(user.accountId);
-  if (!canApprove) {
-    throw new AuthorizationError('You do not have permission to approve follow-up work creation.');
-  }
-
   const reviewDecision = await repository.getReviewDecisionById(reviewDecisionId);
   if (!reviewDecision) {
     throw new NotFoundError('ReviewDecision', reviewDecisionId);
+  }
+
+  const user = await authService.getCurrentUser();
+  const canApprove = await authService.canApproveFollowup(user.accountId, reviewDecision.deployment_id);
+  if (!canApprove) {
+    throw new AuthorizationError('You do not have permission to approve follow-up work creation.');
   }
 
   // Idempotency check: don't create duplicate follow-up
@@ -66,11 +66,10 @@ export async function handleApproveFollowup(payload: any, context: any): Promise
     }
   }
 
-  // Mark action PENDING before invoking external mutation
-  await repository.updateReviewDecisionFollowup(
+  // Persist idempotency key and mark action PENDING on review_decisions row before calling external Jira mutation
+  await repository.setFollowupPendingWithKey(
     reviewDecisionId,
-    '',
-    '',
+    idempotencyKey,
     FollowupCreationStatus.PENDING
   );
 
@@ -164,23 +163,13 @@ export async function handleGetReviewPackage(payload: any, context: any): Promis
     defaultProject = '';
   }
 
-  // Derive procedures dynamically from evidence metadata or default verification standard
+  // Derive procedures dynamically from evidence metadata; do not invent uncataloged procedures
   const evidenceMeta = (evidence?.metadata as any) || {};
-  const testProcedures = evidenceMeta.procedures || [
-    {
-      name: 'Physical Condition Revalidation',
-      source: evidence?.confluence_page_id ? `Confluence Page (${evidence.confluence_page_id})` : 'Baseline Documentation',
-      description: 'Perform visual and instrumental validation of the modified environmental condition before robot operation.',
-    },
-    {
-      name: 'Sensor and Navigation Verification',
-      source: evidence?.confluence_page_id ? `Confluence Page (${evidence.confluence_page_id})` : 'Baseline Documentation',
-      description: 'Execute sensor perception check and route waypoint validation under the new operating environment.',
-    },
-  ];
+  const testProcedures = Array.isArray(evidenceMeta.procedures) ? evidenceMeta.procedures : [];
+  const requiresExpertDefinition = testProcedures.length === 0;
 
   const deploymentName = deployment?.deployment_identifier || 'Automated System';
-  const zoneName = zone?.name || 'Operating Zone';
+  const zoneName = zone?.name || 'Unknown Zone';
   const attributeName = changeIntent?.proposed_attribute || 'Condition';
   const proposedVal = changeIntent?.proposed_value || 'Modified State';
 
@@ -197,6 +186,10 @@ export async function handleGetReviewPackage(payload: any, context: any): Promis
       zoneName: zoneName,
     },
     applicableProcedures: testProcedures,
+    requiresExpertDefinition,
+    expertDefinitionNotice: requiresExpertDefinition
+      ? 'Expert-Definition Request: Baseline evidence specifies no cataloged verification procedure for this condition. A qualified robotics engineer must define and approve an ad-hoc verification plan prior to physical work.'
+      : null,
     proposedFollowup: {
       targetProjectKey: defaultProject,
       summary: `[ANDON Review] ${deploymentName} - ${attributeName} change in ${zoneName}`,

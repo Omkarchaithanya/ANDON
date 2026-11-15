@@ -53,6 +53,12 @@ describe('Authorization Service (Fail-Closed & IDOR Defenses)', () => {
 
       const isAuth = await isAuthorizedReviewer('random-user', 'dep-1');
       expect(isAuth).toBe(false);
+
+      const canConfirm = await canConfirmRelationship('random-user');
+      expect(canConfirm).toBe(false);
+
+      const canApprove = await canApproveFollowup('random-user');
+      expect(canApprove).toBe(false);
     });
 
     it('throws AuthorizationError when policy storage read fails (fails closed)', async () => {

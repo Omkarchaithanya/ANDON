@@ -1,0 +1,173 @@
+/**
+ * @file theme.css
+ * @description Executive Design Token System for ANDON Digital Twin.
+ * Modern, clean, restrained engineering aesthetics inspired by Linear, Datadog & Figma.
+ */
+
+:root, [data-theme="dark"] {
+  /* Slate Canvas & Surfaces */
+  --bg-canvas: #090D16;
+  --bg-surface: #0F172A;
+  --bg-surface-glass: rgba(15, 23, 42, 0.88);
+  --bg-elevated: #1E293B;
+  --bg-hover: #334155;
+  --bg-input: #0F172A;
+  --bg-subtle: #141E33;
+
+  /* Subtle Crisp Borders */
+  --border-default: #1E293B;
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.16);
+  --border-focus: #3B82F6;
+
+  /* Refined Modern Accents (No harsh neon) */
+  --accent-primary: #3B82F6;
+  --accent-primary-hover: #2563EB;
+  --accent-primary-subtle: rgba(59, 130, 246, 0.12);
+  --accent-cyan: #0EA5E9;
+  --accent-teal: #10B981;
+  --accent-amber: #F59E0B;
+  --accent-rose: #EF4444;
+
+  /* Typography Hierarchy */
+  --text-primary: #F8FAFC;
+  --text-secondary: #94A3B8;
+  --text-muted: #64748B;
+  --text-inverse: #090D16;
+
+  /* Zone Overlays */
+  --zone-fill: rgba(59, 130, 246, 0.08);
+  --zone-stroke: rgba(59, 130, 246, 0.65);
+  --zone-stroke-active: #3B82F6;
+
+  /* Status Badges */
+  --status-danger-bg: rgba(239, 68, 68, 0.12);
+  --status-danger-text: #F87171;
+  --status-danger-border: rgba(239, 68, 68, 0.3);
+
+  --status-warning-bg: rgba(245, 158, 11, 0.12);
+  --status-warning-text: #FBBF24;
+  --status-warning-border: rgba(245, 158, 11, 0.3);
+
+  --status-info-bg: rgba(59, 130, 246, 0.12);
+  --status-info-text: #60A5FA;
+  --status-info-border: rgba(59, 130, 246, 0.3);
+
+  --status-success-bg: rgba(16, 185, 129, 0.12);
+  --status-success-text: #34D399;
+  --status-success-border: rgba(16, 185, 129, 0.3);
+
+  /* Blueprint Architectural Tokens */
+  --blueprint-grid: rgba(255, 255, 255, 0.025);
+  --blueprint-wall: #334155;
+  --blueprint-wall-outer: #475569;
+  --blueprint-door: #64748B;
+  --blueprint-room-bg: #0D1424;
+  --blueprint-room-label: #CBD5E1;
+  --blueprint-room-sub: #64748B;
+
+  /* Shadows (Subtle, no neon glows) */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-card: 0 4px 16px rgba(0, 0, 0, 0.35);
+  --shadow-float: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+[data-theme="light"] {
+  --bg-canvas: #F8FAFC;
+  --bg-surface: #FFFFFF;
+  --bg-surface-glass: rgba(255, 255, 255, 0.92);
+  --bg-elevated: #F1F5F9;
+  --bg-hover: #E2E8F0;
+  --bg-input: #FFFFFF;
+  --bg-subtle: #F8FAFC;
+
+  --border-default: #E2E8F0;
+  --border-subtle: #E2E8F0;
+  --border-strong: #CBD5E1;
+  --border-focus: #2563EB;
+
+  --accent-primary: #2563EB;
+  --accent-primary-hover: #1D4ED8;
+  --accent-primary-subtle: rgba(37, 99, 235, 0.08);
+  --accent-cyan: #0284C7;
+  --accent-teal: #059669;
+  --accent-amber: #D97706;
+  --accent-rose: #DC2626;
+
+  --text-primary: #0F172A;
+  --text-secondary: #475569;
+  --text-muted: #94A3B8;
+  --text-inverse: #FFFFFF;
+
+  --zone-fill: rgba(37, 99, 235, 0.08);
+  --zone-stroke: rgba(37, 99, 235, 0.6);
+  --zone-stroke-active: #2563EB;
+
+  --status-danger-bg: #FEE2E2;
+  --status-danger-text: #DC2626;
+  --status-danger-border: #FCA5A5;
+
+  --status-warning-bg: #FEF3C7;
+  --status-warning-text: #D97706;
+  --status-warning-border: #FCD34D;
+
+  --status-info-bg: #EFF6FF;
+  --status-info-text: #2563EB;
+  --status-info-border: #BFDBFE;
+
+  --status-success-bg: #ECFDF5;
+  --status-success-text: #059669;
+  --status-success-border: #6EE7B7;
+
+  --blueprint-grid: rgba(0, 0, 0, 0.03);
+  --blueprint-wall: #CBD5E1;
+  --blueprint-wall-outer: #94A3B8;
+  --blueprint-door: #94A3B8;
+  --blueprint-room-bg: #FFFFFF;
+  --blueprint-room-label: #1E293B;
+  --blueprint-room-sub: #64748B;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-card: 0 4px 16px rgba(0, 0, 0, 0.06);
+  --shadow-float: 0 8px 24px rgba(0, 0, 0, 0.1);
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg-canvas);
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Inter', sans-serif;
+  letter-spacing: -0.01em;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Glass panel */
+.glass-panel {
+  background: var(--bg-surface-glass);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-default);
+}
+
+/* Interactive elements transition */
+button, input, select, textarea {
+  font-family: inherit;
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Scrollbar polish */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}

@@ -3,12 +3,9 @@
  * @description Service for Atlassian Teamwork Graph API integration.
  *
  * Uses curated GraphQL operations with GraphQL variables and ARI formatting.
- * Calls api.asUser().requestTeamworkGraph (with requestGraph compatibility fallback).
+ * Calls api.asUser().requestTeamworkGraph.
  *
- * IMPORTANT: All Teamwork Graph calls are current-user scoped. This means
- * event handlers (async events, scheduled triggers, webhooks) CANNOT use
- * this service because they lack a user context. Only resolver functions
- * invoked by a real user session should call these methods.
+ * All Teamwork Graph calls are current-user scoped and require context.cloudId.
  */
 
 import api from '@forge/api';
@@ -33,14 +30,16 @@ export interface PageOwner {
 }
 
 /**
- * Builds or normalizes a Confluence Page ARI.
+ * Builds a Confluence Page ARI. Requires cloudId from invocation context.
  */
 export function buildConfluencePageAri(pageIdOrAri: string, cloudId?: string): string {
   if (pageIdOrAri.startsWith('ari:cloud:confluence:')) {
     return pageIdOrAri;
   }
-  const effectiveCloudId = cloudId || 'current';
-  return `ari:cloud:confluence:${effectiveCloudId}:page/${pageIdOrAri}`;
+  if (!cloudId) {
+    throw new ValidationError('Teamwork Graph queries require a valid cloudId from invocation context');
+  }
+  return `ari:cloud:confluence:${cloudId}:page/${pageIdOrAri}`;
 }
 
 const LINKED_PAGES_QUERY = `
@@ -53,10 +52,6 @@ const LINKED_PAGES_QUERY = `
             title
           }
         }
-      }
-      nodes {
-        id
-        title
       }
       pageInfo {
         hasNextPage
@@ -77,10 +72,6 @@ const PAGE_OWNERS_QUERY = `
           }
         }
       }
-      nodes {
-        accountId
-        displayName
-      }
     }
   }
 `;
@@ -88,35 +79,25 @@ const PAGE_OWNERS_QUERY = `
 async function executeGraphQuery(query: string, variables: Record<string, unknown>): Promise<any> {
   const userApi = api.asUser() as any;
 
-  if (typeof userApi.requestTeamworkGraph === 'function') {
-    return userApi.requestTeamworkGraph(query, variables);
+  if (typeof userApi.requestTeamworkGraph !== 'function') {
+    throw new ExternalApiError('Teamwork Graph API is not available on api.asUser()');
   }
 
-  if (typeof userApi.requestGraph === 'function') {
-    // Inject variables directly if running against older GraphQL shim
-    let inlinedQuery = query;
-    for (const [k, v] of Object.entries(variables)) {
-      if (typeof v === 'string') {
-        inlinedQuery = inlinedQuery.replace(new RegExp(`\\$${k}\\b`, 'g'), `"${v}"`);
-      } else {
-        inlinedQuery = inlinedQuery.replace(new RegExp(`\\$${k}\\b`, 'g'), String(v));
-      }
-    }
-    return userApi.requestGraph(inlinedQuery);
-  }
-
-  throw new ExternalApiError('Neither requestTeamworkGraph nor requestGraph is available on api.asUser()');
+  return userApi.requestTeamworkGraph(query, variables);
 }
 
 /**
  * Retrieves all Confluence pages linked to the given page via Teamwork Graph.
  */
-export async function getLinkedConfluencePages(pageIdOrAri: string): Promise<LinkedPage[]> {
+export async function getLinkedConfluencePages(
+  pageIdOrAri: string,
+  cloudId?: string
+): Promise<LinkedPage[]> {
   if (!isNonEmptyString(pageIdOrAri)) {
     throw new ValidationError('pageId must be a non-empty string');
   }
 
-  const ari = buildConfluencePageAri(pageIdOrAri);
+  const ari = buildConfluencePageAri(pageIdOrAri, cloudId);
   const allLinkedPages: LinkedPage[] = [];
   let hasNextPage = true;
   let endCursor: string | null = null;
@@ -159,22 +140,12 @@ export async function getLinkedConfluencePages(pageIdOrAri: string): Promise<Lin
       return allLinkedPages;
     }
 
-    // Support both Relay edges and flat nodes
     if (Array.isArray(result.edges)) {
       for (const edge of result.edges) {
         if (edge?.node?.id) {
           allLinkedPages.push({
             id: edge.node.id,
             title: edge.node.title || 'Untitled',
-          });
-        }
-      }
-    } else if (Array.isArray(result.nodes)) {
-      for (const node of result.nodes) {
-        if (node?.id) {
-          allLinkedPages.push({
-            id: node.id,
-            title: node.title || 'Untitled',
           });
         }
       }
@@ -190,12 +161,12 @@ export async function getLinkedConfluencePages(pageIdOrAri: string): Promise<Lin
 /**
  * Retrieves the owners of a Confluence page via Teamwork Graph.
  */
-export async function getPageOwners(pageIdOrAri: string): Promise<PageOwner[]> {
+export async function getPageOwners(pageIdOrAri: string, cloudId?: string): Promise<PageOwner[]> {
   if (!isNonEmptyString(pageIdOrAri)) {
     throw new ValidationError('pageId must be a non-empty string');
   }
 
-  const ari = buildConfluencePageAri(pageIdOrAri);
+  const ari = buildConfluencePageAri(pageIdOrAri, cloudId);
 
   let response: any;
   try {
@@ -225,24 +196,13 @@ export async function getPageOwners(pageIdOrAri: string): Promise<PageOwner[]> {
   const result = body.data?.confluencePageOwners;
   const owners: PageOwner[] = [];
 
-  if (result) {
-    if (Array.isArray(result.edges)) {
-      for (const edge of result.edges) {
-        if (edge?.node?.accountId) {
-          owners.push({
-            accountId: edge.node.accountId,
-            displayName: edge.node.displayName || 'Confluence User',
-          });
-        }
-      }
-    } else if (Array.isArray(result.nodes)) {
-      for (const node of result.nodes) {
-        if (node?.accountId) {
-          owners.push({
-            accountId: node.accountId,
-            displayName: node.displayName || 'Confluence User',
-          });
-        }
+  if (result && Array.isArray(result.edges)) {
+    for (const edge of result.edges) {
+      if (edge?.node?.accountId) {
+        owners.push({
+          accountId: edge.node.accountId,
+          displayName: edge.node.displayName || 'Confluence User',
+        });
       }
     }
   }
@@ -253,9 +213,9 @@ export async function getPageOwners(pageIdOrAri: string): Promise<PageOwner[]> {
 /**
  * Convenience method combining linked pages and page owners discovery for a root page.
  */
-export async function discoverGraphContext(rootPageId: string): Promise<GraphContext> {
-  const linked = await getLinkedConfluencePages(rootPageId);
-  const owners = await getPageOwners(rootPageId);
+export async function discoverGraphContext(rootPageId: string, cloudId?: string): Promise<GraphContext> {
+  const linked = await getLinkedConfluencePages(rootPageId, cloudId);
+  const owners = await getPageOwners(rootPageId, cloudId);
 
   return {
     site_page_id: rootPageId,
@@ -273,4 +233,3 @@ export async function discoverGraphContext(rootPageId: string): Promise<GraphCon
     discovered_at: new Date().toISOString(),
   };
 }
-

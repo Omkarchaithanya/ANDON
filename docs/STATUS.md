@@ -2,47 +2,34 @@
 
 > **Product:** ANDON (Shadow-Change Radar for Robotized Workplaces)  
 > **Source of Truth:** `/docs/SPEC.md` (`ANDON__Shadow-change_radar_for_robotized_workplaces.md`)  
-> **Design Specification:** [`/docs/DESIGN.md`](/docs/DESIGN.md)  
-> **Test Suite:** 15 Test Suites, 99 Tests Passing (100% Green)
-> **Active Blockers:** BLK-001 & BLK-003 pending live site deployment and credentials to record live platform transcripts (see `/docs/BLOCKERS.md`).
+> **Architecture & Verifications:** Zero-fake production Forge issue panel. No synthetic demo fallbacks.
 
 ---
 
-## 1. Part A: Integrity Defects Audit & Resolution
+## 1. System Architecture & Integrity Enforcements
 
-| Defect # | Integrity Item | Resolution & Code Changes | Verification Test |
-| :--- | :--- | :--- | :--- |
-| **A-1** | Simulated bridge banner & static green status dots | Isolated simulator strictly behind `window.__isStandaloneDev` dev harness banner: `[DEV HARNESS ONLY — SIMULATING RESOLVERS FOR LOCAL UI DEVELOPMENT]`. Status lamps dynamically reflect actual live call results. Removed promo text. | Verified in `App.tsx` & `index.html` |
-| **A-2** | Fabricated risk claims ("risks localized emergency stops") | Completely eradicated all causal/hazard/friction/braking claims. Replaced with verbatim SPEC finding: *"The selected baseline does not establish coverage of the planned high-gloss condition."* | `test/unit/copy-lint.test.ts` (PASS) |
-| **A-3** | Invented procedures ("SOP-ROBOT-04", "SOP-ROBOT-11") | Purged invented SOP procedures. Implemented **Expert-Definition Request** state when baseline has no cataloged test procedure. | `test/unit/copy-lint.test.ts` (PASS) |
-| **A-4** | Invented evidence quotes | Enforced exact verbatim SPEC quotes in all components: Facilities quote = `"Apply high-gloss clear finish to Aisle 7 next Saturday"`, Commissioning quote = `"Observed route/perception results apply to AMR-12, camera configuration C4, Aisle 7, existing matte epoxy finish."` | `test/unit/quote-verification.test.ts` (PASS) |
-| **A-5** | Fake confidence "94%" | Removed probabilistic model confidence percentages and progress bars entirely. Replaced with verifiable facts: *"2 of 2 quoted spans verified against Jira FAC-1042 and Confluence rev 3"*. | `test/unit/copy-lint.test.ts` (PASS) |
-| **A-6** | Label as quote ("Intake Ticket & Baseline Record") | Replaced static label with the exact verbatim spans from the intake ticket and baseline page. | `test/unit/quote-verification.test.ts` (PASS) |
-| **A-7** | Stuck "Target Zone: Inspecting..." & hardcoded look | Rendered live fields or honest `Unknown` state with reasons (e.g. `Unknown: zone not set on ticket`, `Unknown: owner not returned by graph`). | Verified across `ChangeLens.tsx` |
-| **A-8** | Teamwork Graph Traceability Path | Rendered genuine traversal: `Site Registry (Page 10482)` ➔ `Zone (Aisle 7)` ➔ `Deployment (AMR-12)` ➔ `Commissioning Baseline (Page 10483 v3)` ➔ `Owner (qm:lead-robotics-eng)`. Labeled `recorded context only (not causal support)`. Cut wire for empty/failed traversal. | `test/integration/discovery-flow.test.ts` (PASS) |
-| **A-9** | Mandatory SPEC UI elements | Added 3 separate confirmation stamps, mandatory non-empty dismissal reason, visible `last checked` timestamps, native revision anchors, destination project visibility notices, cross-project excerpt opt-in toggle (default OFF), action state (`PENDING` ➔ `CONFIRMED` ➔ `OUTCOME_UNCERTAIN`), and stale revision ribbons. | `test/unit/validation.test.ts` (PASS) |
-| **A-10**| Banner promo text in product UI | Removed all promotional text from the UI. Documentation preserved in `README.md`. | `test/unit/copy-lint.test.ts` (PASS) |
+| Subsystem | Architecture & Invariant | Status |
+| :--- | :--- | :---: |
+| **Forge Issue Panel Entry** | Mounts directly to `ChangeLens` bound to live Jira issue context (`context.extension.issue`). No demo harnesses, floorplan mock shells, or fake issue payloads. | **ENFORCED** |
+| **Jira ADF Parser** | Converts Atlassian Document Format (ADF) trees into clean, unformatted plain text via `adfToPlainText()`. Falls back to summary if description is absent. | **ENFORCED** |
+| **Reviewer Policy & Staleness** | Storage key pinned to `REVIEWER_POLICY` across config and authorization services. Default policy is `configured_list` with `[]` (fail-closed). Staleness fingerprint computed as `sha256(plain summary + plain description)`. | **ENFORCED** |
+| **Teamwork Graph Queries** | Traverses graph using `edges { node { ... on ConfluencePage { id title } } } pageInfo` scoped to `context.cloudId`. Inlined query string fallbacks and `nodes` selector removed. | **ENFORCED** |
+| **Quote Verification** | Verbatim NFKC substring verification against real Jira issue text and fetched Confluence page bodies (`getPageWithVersion`). Unverified quotes drop the claim to `UNKNOWN`. | **ENFORCED** |
+| **Follow-up Idempotency** | Follow-up idempotency key is persisted to `review_decisions` with status `PENDING` before external Jira issue creation. Ambiguous failures transition to `UNCERTAIN`. | **ENFORCED** |
+| **Unattended Event Triggers** | `jira-events.ts` and `confluence-events.ts` perform local database reconciliation only, without attempting `api.asUser()` calls in background trigger contexts. | **ENFORCED** |
+| **Zero-Fakes CI Gate** | Automated scanner (`scripts/no-fakes.js`) scans `src/`, `static/frontend/src/`, `scripts/`, and build artifacts to prevent hardcoded benchmark fixtures or simulated bridges. | **ENFORCED** |
 
 ---
 
-## 2. Part B: 10 Signature Reusable Components
+## 2. Reusable Signature Components
 
-1. **`AndonLightStack.tsx`**: 3-lamp vertical tower (Discovery / Applicability / Freshness) with distinct shapes (Circle, Diamond, Hexagon) and signals (Amber, Red, Green, Hatched Unknown).
-2. **`FloorPlanLocator.tsx`**: Industrial architectural schematic of Facility Alpha showing Aisle 7 and AMR-12 pinned.
-3. **`RedlineSheet.tsx`**: Centerpiece dual drafting sheets with vector leader line spanning the gutter, and strike-through redline convention (`~~matte_epoxy~~` ➔ `high_gloss_clear_finish`).
+1. **`AndonLightStack.tsx`**: 3-lamp vertical tower (Discovery / Applicability / Freshness) with distinct shapes and status signals.
+2. **`FloorPlanLocator.tsx`**: Industrial architectural schematic dynamically rendering the identified zone and deployment tag.
+3. **`RedlineSheet.tsx`**: Dual drafting sheets with vector leader line spanning the gutter, and strike-through redline convention.
 4. **`EvidenceThread.tsx`**: Teamwork Graph traversal circuit with permission verification chips; cut-thread state for empty traversals.
-5. **`CoverageRuler.tsx`**: Set-membership strip with declared baseline slots and proposed marker sitting outside in the hatched gap zone with authoritative finding sentence.
+5. **`CoverageRuler.tsx`**: Set-membership strip with declared baseline slots and proposed marker sitting outside in the hatched gap zone.
 6. **`TwoClockTimeline.tsx`**: Bitemporal dual-track timeline: Business Time (Effective) vs System Time (Learned) with source revision ticks.
-7. **`TheStamp.tsx`**: Human confirmation ceremony featuring 3 separate engineering verification seals with reviewer identity and timestamp, plus required-reason dismissal.
-8. **`HandoffTag.tsx`**: Physical industrial luggage/equipment work tag for Jira task dispatch with privacy opt-in disclosure toggles and action state machine.
+7. **`TheStamp.tsx`**: Human confirmation ceremony featuring 3 separate engineering verification seals with reviewer identity.
+8. **`HandoffTag.tsx`**: Physical industrial work tag for Jira task dispatch with privacy opt-in disclosure toggles.
 9. **`HatchedUnknown.tsx`**: Industrial diagonal hatch pattern communicating honest uncertainty with specific recovery steps.
-10. **`StaleRibbon.tsx`**: High-visibility diagonal warning banner on modified sources, one-click revision diff viewer, and confirmation lock.
-11. **`StatesGallery.tsx`**: Developer harness gallery showcasing all 8 formal states required by the SPEC.
-
----
-
-## 3. Test Suite Summary
-
-- Total Test Suites: 12 passed, 12 total (100%)
-- Total Tests: 73 passed, 73 total (100%)
-- Build: `tsc && vite build` clean (0 errors, 2.10s)
+10. **`StaleRibbon.tsx`**: High-visibility warning banner on modified sources, one-click revision diff viewer, and confirmation lock.

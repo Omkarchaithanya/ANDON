@@ -77,7 +77,7 @@ export const EVIDENCE_REVISIONS_QUERIES = {
   findByConfluencePageId: `SELECT * FROM evidence_revisions WHERE confluence_page_id = ?`,
   insert: `
     INSERT INTO evidence_revisions (id, deployment_id, evidence_type, confluence_page_id, confluence_page_version, source_quoted_text, declared_scope, approved_by, approved_at, effective_from, recorded_at, status, staleness_reason, metadata, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?, ?, NOW(), NOW())
   `,
   updateStatus: `
     UPDATE evidence_revisions
@@ -137,6 +137,11 @@ export const REVIEW_DECISIONS_QUERIES = {
   updateFollowupStatus: `
     UPDATE review_decisions
     SET followup_creation_status = ?, updated_at = NOW()
+    WHERE id = ?
+  `,
+  setFollowupPendingWithKey: `
+    UPDATE review_decisions
+    SET followup_idempotency_key = ?, followup_creation_status = ?, updated_at = NOW()
     WHERE id = ?
   `,
 };

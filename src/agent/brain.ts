@@ -15,12 +15,15 @@
 
 import { extractChangeAttributes } from '../services/llm.service';
 import { getLinkedConfluencePages } from '../services/teamwork-graph.service';
+import { getPageWithVersion, extractPlainText } from '../services/confluence.service';
 import { verifyExactQuote } from '../utils/quote-verifier';
 import { evaluateCoverage, ProposedCondition } from '../services/scope-comparison.service';
 import { getIssue } from '../services/jira.service';
 import { DeclaredScope } from '../models/entities';
 import { DiscoveryStatus } from '../models/enums';
-import { computeFingerprint } from '../utils/content-fingerprint';
+import { computeFingerprint, computeJiraIssueFingerprint } from '../utils/content-fingerprint';
+import { adfToPlainText } from '../utils/adf';
+import { CONFIG_KEYS } from '../services/config.service';
 import * as repository from '../db/repository';
 
 export enum PipelineStep {
@@ -44,15 +47,17 @@ export interface PipelineResult {
  */
 export async function executeBoundedPipeline(
   issueKeyOrId: string,
-  preloadedGraphPages?: Array<{ id: string; title: string }>
+  preloadedGraphPages?: Array<{ id: string; title: string }>,
+  cloudId?: string
 ): Promise<PipelineResult> {
   // -------------------------------------------------------------------------
   // Step 1: INTAKE (LLM extraction, zero tools)
   // -------------------------------------------------------------------------
   const issue = await getIssue(issueKeyOrId);
   const issueSummary = issue.fields?.summary || (issue as any).summary || '';
-  const issueDescription = issue.fields?.description || (issue as any).description || '';
-  const issueText = `${issueSummary}\n${issueDescription}`.trim();
+  const rawDescription = issue.fields?.description ?? (issue as any).description;
+  const plainDescription = adfToPlainText(rawDescription);
+  const issueText = plainDescription ? `${issueSummary}\n${plainDescription}`.trim() : issueSummary.trim();
 
   const extraction = await extractChangeAttributes(issueText);
   if (!extraction || !extraction.attribute || !extraction.proposedValue) {
@@ -64,21 +69,37 @@ export async function executeBoundedPipeline(
   }
 
   // -------------------------------------------------------------------------
-  // Step 2: CONTEXT (Teamwork Graph traversal, no LLM)
+  // Step 2: CONTEXT (Teamwork Graph traversal & Page Body fetch, no LLM)
   // -------------------------------------------------------------------------
-  const siteConfig = await repository.getAppConfig('site_registry_page_id');
+  const siteRegistryKey = CONFIG_KEYS?.SITE_REGISTRY_PAGE_ID || 'SITE_REGISTRY_PAGE_ID';
+  const siteConfig =
+    (await repository.getAppConfig(siteRegistryKey)) ||
+    (await repository.getAppConfig('site_registry_page_id'));
   if (!siteConfig) {
     return {
       status: 'UNKNOWN',
       stepReached: PipelineStep.CONTEXT,
-      reason: 'No site registry page is configured. Please configure site_registry_page_id.',
+      reason: 'No site registry page is configured. Please configure SITE_REGISTRY_PAGE_ID.',
+    };
+  }
+
+  // Fetch actual site registry page body
+  let registryPageText = '';
+  try {
+    const regPage = await getPageWithVersion(siteConfig);
+    registryPageText = regPage.content || '';
+  } catch (regErr: any) {
+    return {
+      status: 'UNKNOWN',
+      stepReached: PipelineStep.CONTEXT,
+      reason: `Could not retrieve site registry page (${siteConfig}): ${regErr?.message}`,
     };
   }
 
   let linkedPages: Array<{ id: string; title: string }> = preloadedGraphPages || [];
   if (!preloadedGraphPages) {
     try {
-      linkedPages = await getLinkedConfluencePages(siteConfig);
+      linkedPages = await getLinkedConfluencePages(siteConfig, cloudId);
     } catch (graphErr: any) {
       return {
         status: 'UNKNOWN',
@@ -105,14 +126,23 @@ export async function executeBoundedPipeline(
     };
   }
 
-  const locationName = extraction.location;
+  const locationName = extraction.location.trim();
+  const locationInRegistry = registryPageText.toLowerCase().includes(locationName.toLowerCase());
   const matchedZone = await repository.getZoneByName(locationName);
+
+  if (!matchedZone && !locationInRegistry) {
+    return {
+      status: 'UNKNOWN',
+      stepReached: PipelineStep.CONTEXT,
+      reason: `Location "${locationName}" is neither registered nor present in Confluence site registry (Page ${siteConfig}).`,
+    };
+  }
 
   if (!matchedZone) {
     return {
       status: 'UNKNOWN',
       stepReached: PipelineStep.CONTEXT,
-      reason: `No recorded zone found matching location "${locationName}" in accessible site registry.`,
+      reason: `Location "${locationName}" found on registry page but lacks formal database deployment mapping.`,
     };
   }
 
@@ -125,6 +155,17 @@ export async function executeBoundedPipeline(
       stepReached: PipelineStep.CONTEXT,
       reason: `No active robot deployment recorded in zone "${matchedZone.name}".`,
     };
+  }
+
+  // Fetch actual bodies for linked pages to verify commissioning quotes
+  const linkedBodies: string[] = [];
+  for (const lp of linkedPages) {
+    try {
+      const page = await getPageWithVersion(lp.id);
+      linkedBodies.push(page.content || '');
+    } catch {
+      // If a linked page cannot be read due to permissions or errors, continue
+    }
   }
 
   // -------------------------------------------------------------------------
@@ -185,8 +226,7 @@ export async function executeBoundedPipeline(
   // -------------------------------------------------------------------------
   // Step 5: PACKAGE (Human gate preparation, no write)
   // -------------------------------------------------------------------------
-  const rawFingerprintText = `${issue.key}:${extraction.attribute}:${extraction.proposedValue}:${verifiedQuote}`;
-  const fingerprint = computeFingerprint(rawFingerprintText);
+  const fingerprint = computeJiraIssueFingerprint(issueSummary, rawDescription);
 
   const created = await repository.insertChangeIntent({
     jira_issue_id: issue.id,

@@ -79,7 +79,6 @@ export async function handleRegisterDeployment(payload: any, context: any): Prom
   }
 
   // 1. Register or find Site
-  let site = await repository.getZoneByName(siteName);
   const createdSite = await repository.insertSite({
     name: siteName.trim(),
     confluence_page_id: confluenceCommissioningPageId || null,

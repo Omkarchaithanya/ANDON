@@ -52,7 +52,7 @@ export interface CurrentUser {
 // ---------------------------------------------------------------------------
 
 /** App property key for storing the reviewer policy. */
-const REVIEWER_POLICY_PROPERTY_KEY = 'andon:reviewer-policy';
+const REVIEWER_POLICY_PROPERTY_KEY = 'REVIEWER_POLICY';
 
 /** Default policy when no configuration exists: fail closed. */
 const DEFAULT_REVIEWER_POLICY: ReviewerPolicy = {
@@ -167,21 +167,41 @@ export async function isAuthorizedReviewer(
  * (i.e., accept or reject an LLM-proposed relationship between
  * a change intent and a condition).
  *
- * For MVP, any authenticated user can confirm relationships.
+ * Enforces configured reviewer policy fail-closed.
  *
  * @param accountId - The Atlassian account ID of the user.
+ * @param deploymentId - Optional deployment ID for object-level owner check.
  * @returns True if the user can confirm relationships.
  * @throws {ValidationError} If accountId is empty.
  */
 export async function canConfirmRelationship(
-  accountId: string
+  accountId: string,
+  deploymentId?: string
 ): Promise<boolean> {
   if (!isNonEmptyString(accountId)) {
     throw new ValidationError('accountId must be a non-empty string');
   }
 
-  // MVP: any authenticated user can confirm relationships
-  return true;
+  const policy = await getReviewerPolicy();
+  switch (policy.mode) {
+    case 'any_authenticated':
+      return true;
+
+    case 'configured_list': {
+      const allowedIds = policy.allowed_account_ids ?? [];
+      return allowedIds.includes(accountId);
+    }
+
+    case 'owner_only': {
+      if (!deploymentId || !isNonEmptyString(deploymentId)) {
+        return false;
+      }
+      return isAuthorizedReviewer(accountId, deploymentId);
+    }
+
+    default:
+      return false;
+  }
 }
 
 /**
@@ -189,21 +209,41 @@ export async function canConfirmRelationship(
  * (i.e., trigger the creation of a follow-up Jira issue from a
  * review decision).
  *
- * For MVP, any authenticated user can approve follow-ups.
+ * Enforces configured reviewer policy fail-closed.
  *
  * @param accountId - The Atlassian account ID of the user.
+ * @param deploymentId - Optional deployment ID for object-level owner check.
  * @returns True if the user can approve follow-up creation.
  * @throws {ValidationError} If accountId is empty.
  */
 export async function canApproveFollowup(
-  accountId: string
+  accountId: string,
+  deploymentId?: string
 ): Promise<boolean> {
   if (!isNonEmptyString(accountId)) {
     throw new ValidationError('accountId must be a non-empty string');
   }
 
-  // MVP: any authenticated user can approve follow-ups
-  return true;
+  const policy = await getReviewerPolicy();
+  switch (policy.mode) {
+    case 'any_authenticated':
+      return true;
+
+    case 'configured_list': {
+      const allowedIds = policy.allowed_account_ids ?? [];
+      return allowedIds.includes(accountId);
+    }
+
+    case 'owner_only': {
+      if (!deploymentId || !isNonEmptyString(deploymentId)) {
+        return false;
+      }
+      return isAuthorizedReviewer(accountId, deploymentId);
+    }
+
+    default:
+      return false;
+  }
 }
 
 /**

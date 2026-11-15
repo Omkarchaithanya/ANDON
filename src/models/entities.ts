@@ -49,7 +49,7 @@ export interface Zone {
 export type CreateZoneInput = Omit<Zone, 'id' | 'created_at' | 'updated_at'>;
 
 /**
- * Deployment entity representing an active robotics commissioning unit (e.g. AMR-12).
+ * Deployment entity representing an active robotics commissioning unit (e.g. ROBOT-01).
  */
 export interface Deployment {
   id: string;

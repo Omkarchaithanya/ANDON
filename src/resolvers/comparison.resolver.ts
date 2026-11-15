@@ -89,13 +89,6 @@ export async function handleGetEvidenceRedline(payload: any, context: any): Prom
     }
   }
 
-  if (!deployment) {
-    // If no deployment directly mapped to zone, check deployments across site
-    if (site) {
-      const siteZones = await repository.getZoneById(site.id);
-    }
-  }
-
   if (deployment) {
     conditions = await repository.getConditionsByDeploymentId(deployment.id);
     const evList = await repository.getEvidenceRevisionsByDeploymentId(deployment.id);
@@ -116,9 +109,9 @@ export async function handleGetEvidenceRedline(payload: any, context: any): Prom
   }
 
   const graphPath = [
-    { label: site?.name || 'Facility Site Registry', type: 'site' },
-    { label: zone?.name || 'Operating Zone', type: 'zone' },
-    { label: deployment?.deployment_identifier || 'Robotics Deployment', type: 'commissioning' },
+    { label: site?.name || 'Unknown (Site not resolved)', type: 'site' },
+    { label: zone?.name || 'Unknown (Zone not resolved)', type: 'zone' },
+    { label: deployment?.deployment_identifier || 'Unknown (Deployment not resolved)', type: 'commissioning' },
   ];
 
   return {

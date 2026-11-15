@@ -68,8 +68,8 @@ describe('Confirmation Flow Integration', () => {
       {}
     );
 
-    expect(reviewDecision.coverage_result).toBe(CoverageResult.GAP);
-    expect(reviewDecision.review_status).toBe(ReviewStatus.CONFIRMED_GAP);
+    expect((reviewDecision as any).coverage_result).toBe(CoverageResult.GAP);
+    expect((reviewDecision as any).review_status).toBe(ReviewStatus.CONFIRMED_GAP);
   });
 
   it('dismisses candidate relationship with audit reason', async () => {

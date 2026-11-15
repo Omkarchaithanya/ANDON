@@ -72,7 +72,7 @@ export interface ChangeIntent {
   status: CandidateStatus;
   /** Human-readable label, e.g. "Surface finish change". */
   label: string;
-  /** The deployment affected, e.g. "AMR-12". */
+  /** The deployment affected, e.g. "ROBOT-01". */
   deployment: string;
   /** The physical zone, e.g. "Aisle 7". */
   zone: string;

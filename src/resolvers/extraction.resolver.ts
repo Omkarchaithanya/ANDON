@@ -7,6 +7,7 @@ import { ExtractionProposal } from '../models/entities';
 import { validateConditionSchema } from '../models/schemas';
 import { ValidationError } from '../utils/errors';
 import * as llmService from '../services/llm.service';
+import { defaultConditionRegistry } from '../domain/condition-registry';
 
 /**
  * Handles LLM extraction from text and validates against the allowed dictionary.
@@ -24,13 +25,14 @@ export async function handleExtraction(
 
   // 2. Validate extracted attribute against schema
   if (proposal.attribute_name) {
+    const family = defaultConditionRegistry.get(proposal.attribute_name);
     const check = validateConditionSchema(proposal.attribute_name, proposal.new_value);
-    if (!check.isValid) {
-      // If LLM returned a synonym, try normalization
+    if (!check.isValid && family) {
+      // If LLM returned a synonym, try normalization against the registered allowed values
       const normalized = await llmService.normalizeAttributeValue(
         proposal.new_value || '',
         proposal.attribute_name,
-        ['matte_epoxy', 'high_gloss_clear_finish', 'polished_concrete', 'sealed_concrete', 'anti_slip_coating']
+        family.allowedValues
       );
 
       if (normalized.normalized) {

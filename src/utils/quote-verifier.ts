@@ -40,6 +40,15 @@ export function verifyExactQuote(sourceText: string, quote: string): QuoteVerifi
   const normSource = normalizeForVerification(sourceText);
   const normQuote = normalizeForVerification(quote);
 
+  if (!normSource || !normQuote) {
+    return {
+      verified: false,
+      startIndex: -1,
+      endIndex: -1,
+      reason: 'Normalized source text or quote is empty',
+    };
+  }
+
   const index = normSource.indexOf(normQuote);
   if (index === -1) {
     return {

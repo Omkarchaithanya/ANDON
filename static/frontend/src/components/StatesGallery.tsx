@@ -33,16 +33,16 @@ export const StatesGallery: React.FC = () => {
       <div className="gallery-body" style={{ marginTop: '16px' }}>
         {activeTab === 'unknown' && (
           <HatchedUnknown
-            title="Aisle 7 Geometric Boundary Unresolved"
-            reason="Ticket FAC-1042 mentions Aisle 7, but Site Registry Page 10482 lacks mapped polygon vertices."
-            resolutionStep="Check Site Registry Page 10482 in Confluence and add CAD coordinates tag."
+            title="Facility Geometric Boundary Unresolved"
+            reason="Work request specifies a zone that is missing mapped polygon vertices in the registry page."
+            resolutionStep="Check Site Registry Page in Confluence and add CAD coordinates tag."
           />
         )}
 
         {activeTab === 'restricted' && (
           <HatchedUnknown
             title="Confluence Commissioning Record Access Restricted"
-            reason="Current user account lacks read permissions on page 10483 (AMR-12 Commissioning Baseline). Evidence clause redacted."
+            reason="Current user account lacks read permissions on target commissioning baseline page. Evidence clause redacted."
             resolutionStep="Request space view permission from space administrator."
             isRestricted
           />
@@ -50,19 +50,19 @@ export const StatesGallery: React.FC = () => {
 
         {activeTab === 'stale' && (
           <StaleRibbon
-            sourceRef="Page 10483 (AMR-12 Commissioning Baseline)"
-            reviewedVersion={3}
-            currentVersion={4}
+            sourceRef="Commissioning Baseline"
+            reviewedVersion={1}
+            currentVersion={2}
           />
         )}
 
         {activeTab === 'coverage-gap' && (
           <CoverageRuler
             attributeName="surface_finish"
-            declaredScopeValues={['matte_epoxy']}
-            proposedValue="high_gloss_clear_finish"
+            declaredScopeValues={['baseline_spec']}
+            proposedValue="modified_spec"
             isCovered={false}
-            baselineSourceRef="Page 10483 rev 3"
+            baselineSourceRef="Confluence Baseline rev 1"
           />
         )}
 
@@ -77,22 +77,24 @@ export const StatesGallery: React.FC = () => {
         {activeTab === 'cut-thread' && (
           <EvidenceThread
             nodes={[]}
-            ownerName=""
-            isCut
-            cutReason="Curated query confluencePageLinkedConfluencePages returned HTTP 200 with empty list. Not the same as no relationship."
+            ownerName="Qualified Reviewer"
+            isCut={true}
+            cutReason="Graph traversal returned no connected Confluence pages for this location."
           />
         )}
 
         {activeTab === 'two-clock' && (
           <TwoClockTimeline
-            effectiveTime="Next Saturday (2026-11-14)"
+            effectiveTime="Scheduled execution window"
             isEffectiveConfirmed={false}
             learnedTime={new Date().toISOString()}
-            confluenceRevision={3}
-            jiraUpdatedTime="2026-11-07T14:32:00Z"
+            confluenceRevision={1}
+            jiraUpdatedTime={new Date().toISOString()}
           />
         )}
       </div>
     </div>
   );
 };
+
+export default StatesGallery;

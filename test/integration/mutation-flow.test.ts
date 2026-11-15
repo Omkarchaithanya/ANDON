@@ -30,6 +30,7 @@ jest.mock('../../src/db/repository', () => ({
     confluence_page_version: 3,
   }),
   updateReviewDecisionFollowup: jest.fn().mockResolvedValue(undefined),
+  setFollowupPendingWithKey: jest.fn().mockResolvedValue(undefined),
   insertAuditLog: jest.fn().mockResolvedValue(undefined),
 }));
 

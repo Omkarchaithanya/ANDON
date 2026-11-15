@@ -87,9 +87,4 @@ resolver.define('getAssessmentHistory', async (req) => {
   return handleGetAssessmentHistory(req.payload, req.context);
 });
 
-// Async event processor
-resolver.define('processQueueEvent', async (req) => {
-  return { processed: true, event: req.payload };
-});
-
 export const handler = resolver.getDefinitions();

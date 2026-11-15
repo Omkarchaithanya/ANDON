@@ -1,11 +1,11 @@
 app:
-  id: ari:cloud:ecosystem::app/andon-shadow-radar
+  id: ari:cloud:ecosystem::app/3a5890e3-78e3-4364-8333-c0d4f365f59a
   runtime:
     name: nodejs22.x
   description: >
-    Shadow-change radar for robotized workplaces.
-    Discovers when facilities maintenance requests might affect robot deployments
-    whose commissioning assumed different environmental conditions.
+    Shadow-change radar for robotized workplaces. Discovers when facilities
+    maintenance requests might affect robot deployments whose commissioning
+    assumed different environmental conditions.
 
 modules:
   jira:issuePanel:
@@ -34,7 +34,7 @@ modules:
       handler: index.onInstallOrUpgrade
     - key: jira-event-handler
       handler: index.onJiraEvent
-    - key: confluence-event-handler
+    - key: conf-page-handler
       handler: index.onConfluenceEvent
 
   trigger:
@@ -55,7 +55,7 @@ modules:
       events:
         - avi:jira:updated:issue
     - key: confluence-page-updated
-      function: confluence-event-handler
+      function: conf-page-handler
       events:
         - avi:confluence:updated:page
 
@@ -66,6 +66,9 @@ modules:
 
 permissions:
   scopes:
+    - read:confluence-content.summary
+    - read:page:confluence
+    - read:jira-user
     - read:jira-work
     - write:jira-work
     - read:confluence-content.all

@@ -4,6 +4,7 @@
  */
 
 import * as crypto from 'crypto';
+import { adfToPlainText } from './adf';
 
 /**
  * Normalizes content string: lowercase, collapse consecutive whitespace, strip non-printable chars.
@@ -26,6 +27,17 @@ export function computeFingerprint(content: string): string {
 }
 
 /**
+ * Computes deterministic fingerprint for a Jira issue based on normalized plain summary and plain description.
+ * If description is missing/null, summary only is used.
+ */
+export function computeJiraIssueFingerprint(summary: string, description: any): string {
+  const plainSummary = (summary || '').trim();
+  const plainDescription = adfToPlainText(description);
+  const combined = plainDescription ? `${plainSummary}\n${plainDescription}` : plainSummary;
+  return computeFingerprint(combined);
+}
+
+/**
  * Checks whether new content has changed relative to an old fingerprint.
  */
 export function hasContentChanged(oldFingerprint: string, newContent: string): boolean {
@@ -33,4 +45,3 @@ export function hasContentChanged(oldFingerprint: string, newContent: string): b
   const newFingerprint = computeFingerprint(newContent);
   return oldFingerprint !== newFingerprint;
 }
-

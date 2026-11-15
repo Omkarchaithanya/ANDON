@@ -1,30 +1,18 @@
-# ADR-001: Storage Strategy for Clearance Records & Active Overrides
+# ADR-001: Forge SQL (`@forge/sql` MySQL/TiDB) vs. Forge KVS for Evidence Graph Persistence
+
+## Status
+Accepted
 
 ## Context
-Keel requires persistent storage for:
-1. Clearance snapshots and evaluation input hashes (`hash(evidence-set)`).
-2. Human-approved Overrides (ADRs) with actor identity, overruled finding IDs, relation, and expiry timestamp.
-3. Action lifecycle records (`pending`, `confirmed`, `outcome_uncertain`) for idempotent multi-surface writes.
-4. Audit logs for state transitions.
+ANDON requires relational storage for facility sites, operating zones, robot deployments, baseline condition clauses, bitemporal evidence revisions, fingerprinted change intents, idempotent review decisions, and immutable action audit logs.
 
-Atlassian Forge provides two primary storage mechanisms:
-- **Forge KVS (`@forge/api` storage):** Key-value and query API. Scoped per installation. Documented 32KB value size limit per key. Fast, zero-migration schema, high availability across tenants.
-- **Forge SQL (`@forge/sql`):** Relational MySQL database scoped per app installation. Requires DDL migrations, has query row limits, and does not support multi-statement transactions.
-
-## Options Considered
-1. **Forge SQL only:** Strong relational schema, but complex startup DDL migration timing and installation-readiness overhead.
-2. **Forge KVS only:** Key-value store with query API. Encapsulates snapshots, overrides, and action records as serialized JSON documents. Simple recovery, no migration failures on fresh installations.
-3. **Hybrid (KVS for snapshots & active overrides, SQL for relational audit log if needed):** Redundant operational complexity for an MVP.
+Atlassian Forge provides two storage mechanisms:
+1. **Forge KVS (`@forge/api` storage):** Key-value store scoped per installation with a hard 32KB value size limit per key.
+2. **Forge SQL (`@forge/sql`):** Tenant-isolated relational MySQL database engine with parameterized queries (`sql.prepare().bindParams().execute()`) and chained migration runner (`migrationRunner.enqueue().run()`).
 
 ## Decision
-**We choose Forge KVS (`storage`) as the primary storage mechanism for Keel**, backed by structured Zod schemas in `/domain`:
-- Key namespace: `clearance:snapshot:<issueKey>` -> `ClearanceRecord`
-- Key namespace: `clearance:override:<issueKey>` -> `Override`
-- Key namespace: `clearance:action:<actionId>` -> `ActionRecord` (`pending` | `confirmed` | `outcome_uncertain`)
-- Key namespace: `clearance:hash:<inputHash>` -> Cached status
-
-## Consequences
-- **Positive:** Zero migration delay during fresh tenant install; 100% resilient across dev, staging, and production-like environments.
-- **Positive:** Bitemporal records are stored as complete, immutable JSON snapshots with verifiable input hashes.
-- **Constraint:** Snapshots must remain under 32KB. The cap of at most five findings on the card guarantees that serialized payloads remain well under 5KB.
-
+We choose **Forge SQL (`@forge/sql`)** as the primary storage mechanism for ANDON:
+- Eliminates the 32KB per-key limit of Forge KVS.
+- Supports indexed relational lookups by `zone_id`, `deployment_id`, `jira_issue_id`, and `idempotency_key UNIQUE`.
+- Schema DDL statements are defined in-memory in `src/db/schema.ts` and applied via `migrationRunner` in `src/handlers/install.ts`, preventing runtime file-system dependency issues in the Forge sandbox.
+- Referential integrity is enforced in `src/db/repository.ts` and `src/services/` (accommodating TiDB foreign key limitations).

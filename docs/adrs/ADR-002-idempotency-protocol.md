@@ -1,30 +1,16 @@
-# ADR-002: Idempotent Action Protocol & Multi-Surface Write Reconciliation
+# ADR-002: Compound Idempotency Hashing & Three-State Action Reconciliation
+
+## Status
+Accepted
 
 ## Context
-When an authorized engineer accepts a hold or provides a 1-sentence override, Keel produces a **Clearance Record** across three distinct external surfaces:
-1. Confluence page template (linked to the issue)
-2. Jira comment (compact Clearance Card)
-3. Teamwork Graph connector object (or native graph link indexer)
-
-Network interruptions, lambda execution timeouts, or transient 500 errors can cause partial failure where one write succeeds while another is uncertain. Naive retries could produce duplicate Confluence pages, spam Jira comments, or duplicate graph nodes.
-
-Furthermore, `hash(issueKey + evaluatedAt)` is not retry-safe because retrying at a later timestamp produces a different key.
+Network timeouts, webhooks re-deliveries, and transient platform errors can cause lost responses or duplicate action dispatches when creating Jira follow-up tasks or recording human reviews. Naive retries risk creating duplicate Jira issues in engineering projects.
 
 ## Decision
-1. **Compound Idempotency Key:**
-   $$\text{IdempotencyKey} = \text{SHA-256}(\text{issueKey} \parallel \text{evidenceSetHash} \parallel \text{action})$$
-   where `evidenceSetHash` is the normalized SHA-256 hash of the gathered evidence IDs and revisions. Retrying the same action on the same evidence produces an identical key regardless of clock time.
-
-2. **Action Record Protocol:**
-   Every mutating write-back transitions through three explicit states:
-   - `pending`: Action record created with the idempotency key prior to external calls.
-   - `confirmed`: All target surfaces confirmed creation.
-   - `outcome_uncertain`: An external call timed out or returned an ambiguous HTTP response.
-
-3. **Reconciliation Loop:**
-   Before initiating a new or retried write, Keel queries the remote endpoints (Jira issue comments and Confluence page search) using the deterministic clearance identifier. If the entity already exists, the state is marked `confirmed` and duplicate creation is prevented.
-
-## Consequences
-- Guaranteed zero duplicate comments or pages upon event replay or network retry.
-- Visible, honest write-back status in the panel rather than assuming fake exactly-once execution.
-
+1. **Deterministic Idempotency Keys:** Follow-up Jira issue creation uses deterministic SHA-256 compound keys:
+   `idempotencyKey = hash(changeIntentId + '::' + deploymentId)`
+2. **Three-State Action Lifecycle:** Actions transition through explicit states:
+   - `PENDING`: Action recorded before remote dispatch.
+   - `CONFIRMED`: Successful remote response (HTTP 201).
+   - `OUTCOME_UNCERTAIN`: Network failure or timeout before response receipt.
+3. **Reconciliation Protocol:** Before any retry, `reconcileUncertainAction` checks existing follow-up records by key. If the task was already created, the existing reference is linked rather than duplicated.

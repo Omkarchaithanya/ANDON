@@ -478,6 +478,10 @@ export async function insertChangeIntent(input: CreateChangeIntentInput): Promis
   return (await getChangeIntentById(id))!;
 }
 
+export async function updateChangeIntentStatus(id: string, status: string): Promise<void> {
+  await executeSql(CHANGE_INTENTS_QUERIES.updateStatus, [status, id]);
+}
+
 export async function confirmChangeIntent(id: string, confirmedBy: string): Promise<void> {
   await executeSql(CHANGE_INTENTS_QUERIES.confirm, [confirmedBy, id]);
 }
@@ -634,6 +638,18 @@ export async function updateReviewDecisionFollowup(
   await executeSql(REVIEW_DECISIONS_QUERIES.updateFollowup, [
     issueId,
     issueKey,
+    status,
+    id,
+  ]);
+}
+
+export async function setFollowupPendingWithKey(
+  id: string,
+  idempotencyKey: string,
+  status: FollowupCreationStatus
+): Promise<void> {
+  await executeSql(REVIEW_DECISIONS_QUERIES.setFollowupPendingWithKey, [
+    idempotencyKey,
     status,
     id,
   ]);

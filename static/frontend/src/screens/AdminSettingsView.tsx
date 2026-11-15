@@ -1,17 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { invoke } from '@forge/bridge';
-import { useDiscovery } from '../hooks/useDiscovery';
 
 interface AdminSettingsViewProps {
   onBack: () => void;
 }
 
 export const AdminSettingsView: React.FC<AdminSettingsViewProps> = ({ onBack }) => {
-  const { updateConfig } = useDiscovery();
   const [siteRegistryId, setSiteRegistryId] = useState('');
   const [projectKey, setProjectKey] = useState('');
+  const [reviewerPolicyMode, setReviewerPolicyMode] = useState<'configured_list' | 'owner_only'>('configured_list');
+  const [allowedReviewersText, setAllowedReviewersText] = useState('');
   const [saved, setSaved] = useState(false);
   const [loadingConfig, setLoadingConfig] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadCurrentConfig() {
@@ -20,9 +21,15 @@ export const AdminSettingsView: React.FC<AdminSettingsViewProps> = ({ onBack }) 
         if (res) {
           if (res.siteRegistryPageId) setSiteRegistryId(res.siteRegistryPageId);
           if (res.defaultFollowupProjectKey) setProjectKey(res.defaultFollowupProjectKey);
+          if (res.reviewerPolicy?.mode) {
+            setReviewerPolicyMode(res.reviewerPolicy.mode === 'owner_only' ? 'owner_only' : 'configured_list');
+          }
+          if (Array.isArray(res.reviewerPolicy?.allowed_account_ids)) {
+            setAllowedReviewersText(res.reviewerPolicy.allowed_account_ids.join(', '));
+          }
         }
       } catch (err: any) {
-        console.warn('Failed to load initial app config:', err?.message);
+        setError(err?.message || 'Failed to load initial app configuration.');
       } finally {
         setLoadingConfig(false);
       }
@@ -32,9 +39,27 @@ export const AdminSettingsView: React.FC<AdminSettingsViewProps> = ({ onBack }) 
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    await updateConfig(siteRegistryId, projectKey);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+    setError(null);
+    try {
+      const allowedIds = allowedReviewersText
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+
+      await invoke('updateAppConfig', {
+        siteRegistryPageId: siteRegistryId.trim(),
+        defaultFollowupProjectKey: projectKey.trim().toUpperCase(),
+        reviewerPolicy: {
+          mode: reviewerPolicyMode,
+          allowed_account_ids: allowedIds,
+        },
+      });
+
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3500);
+    } catch (err: any) {
+      setError(err?.message || 'Failed to save configuration.');
+    }
   };
 
   return (
@@ -46,12 +71,12 @@ export const AdminSettingsView: React.FC<AdminSettingsViewProps> = ({ onBack }) 
         <div className="redline-header-titles">
           <h2 className="redline-main-title">System Administration &amp; App Configuration</h2>
           <p className="redline-main-subtitle">
-            Configure Teamwork Graph registry anchors, storage mechanisms, and default routing
+            Configure Teamwork Graph registry anchors, reviewer authorization policy, and follow-up routing
           </p>
         </div>
       </div>
 
-      <div className="andon-card" style={{ maxWidth: '640px' }}>
+      <div className="andon-card" style={{ maxWidth: '680px' }}>
         <div className="card-top-row">
           <div className="card-title-group">
             <span className="header-icon">⚙️</span>
@@ -63,6 +88,12 @@ export const AdminSettingsView: React.FC<AdminSettingsViewProps> = ({ onBack }) 
         {saved && (
           <div style={{ background: '#DCFCE7', color: '#166534', padding: '10px 14px', borderRadius: '6px', marginBottom: '16px', fontSize: '13px' }}>
             ✓ Configuration saved successfully to Forge secure storage.
+          </div>
+        )}
+
+        {error && (
+          <div className="redline-alert-box alert-error" style={{ marginBottom: '16px' }}>
+            <strong>Configuration Error:</strong> {error}
           </div>
         )}
 
@@ -99,9 +130,42 @@ export const AdminSettingsView: React.FC<AdminSettingsViewProps> = ({ onBack }) 
             </span>
           </div>
 
-          <div style={{ paddingTop: '8px' }}>
-            <button type="submit" className="btn btn-inspect-orange" disabled={loadingConfig}>
-              Save Configuration
+          <div className="form-group">
+            <label className="form-label">Reviewer Authorization Policy</label>
+            <select
+              className="form-input"
+              value={reviewerPolicyMode}
+              onChange={(e) => setReviewerPolicyMode(e.target.value as 'configured_list' | 'owner_only')}
+              disabled={loadingConfig}
+            >
+              <option value="configured_list">Configured List (Fail-closed to designated account IDs)</option>
+              <option value="owner_only">Owner Only (Only deployment creator/owner can review)</option>
+            </select>
+            <span style={{ fontSize: '11px', color: '#64748B', marginTop: '4px', display: 'block' }}>
+              Strict fail-closed policy controlling who is permitted to confirm relationships or approve follow-ups.
+            </span>
+          </div>
+
+          {reviewerPolicyMode === 'configured_list' && (
+            <div className="form-group">
+              <label className="form-label">Allowed Reviewer Account IDs (Comma-separated)</label>
+              <input
+                type="text"
+                className="form-input"
+                value={allowedReviewersText}
+                onChange={(e) => setAllowedReviewersText(e.target.value)}
+                placeholder="e.g. 557058:..., 712020:..."
+                disabled={loadingConfig}
+              />
+              <span style={{ fontSize: '11px', color: '#64748B', marginTop: '4px', display: 'block' }}>
+                Leave empty to fail-closed (no reviewer allowed until populated).
+              </span>
+            </div>
+          )}
+
+          <div style={{ marginTop: '8px', display: 'flex', gap: '12px' }}>
+            <button type="submit" className="btn btn-primary" disabled={loadingConfig}>
+              Save Settings
             </button>
           </div>
         </form>
@@ -109,3 +173,5 @@ export const AdminSettingsView: React.FC<AdminSettingsViewProps> = ({ onBack }) 
     </div>
   );
 };
+
+export default AdminSettingsView;

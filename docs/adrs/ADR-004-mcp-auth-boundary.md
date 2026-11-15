@@ -1,18 +1,16 @@
-# ADR-004: Model Context Protocol (MCP) Boundary & Authorization
+# ADR-004: Bounded Single-Loop Pipeline vs. Free-Running Multi-Agent Systems
+
+## Status
+Accepted
 
 ## Context
-Keel exposes Model Context Protocol tools (`get_clearance` and `assert_no_hold`) to external coding agents (Cursor, Claude Code, GitHub Copilot).
-Foreign agents running locally on developer workstations invoke these tools before merging or tagging releases.
+Autonomous multi-agent loops with open-ended tool calling introduce non-deterministic execution paths, risk token exhaustion, and expose the system to prompt-injection escalations where adversarial ticket text could invoke unintended mutation tools.
 
 ## Decision
-1. **Tool Schema:**
-   - `get_clearance(issueKey: string)`: Returns `{ status: "CLEAR" | "HOLD" | "OVERRIDE" | "UNKNOWN", findings: Finding[], override?: Override, evaluatedAt: string }`
-   - `assert_no_hold(issueKey: string)`: Returns `{ status: "CLEAR" | "HOLD" | "OVERRIDE" | "UNKNOWN", reasons: Array<{ type: string, ref: string }> }`
-
-2. **Fail-Closed on Unauthenticated / Failed Calls:**
-   If an external caller lacks authentication, passes an invalid issue key, or encounters an internal timeout, `assert_no_hold` **MUST NEVER** return an error that a naive script could interpret as a pass.
-   It returns `{ status: "HOLD", reasons: [{ type: "UNVERIFIED_CALLER", ref: "Auth/System failure; not clear to ship" }] }`.
-
-3. **Rate Limiting & Bounded Execution:**
-   MCP tool invocations are bounded to a maximum 10-second timeout, utilizing cached clearance snapshots when available (`hash(evidenceSet)`).
-
+1. **Bounded 5-Step Pipeline:** ANDON implements a strict single-loop pipeline:
+   - `INTAKE`: `@forge/llm` extracts candidate attributes with **zero write tools**.
+   - `CONTEXT`: Teamwork Graph traverses curated links under `api.asUser()`.
+   - `GROUND`: NFKC substring verification validates candidate quotes.
+   - `COMPARE`: Pure deterministic TypeScript engine evaluates coverage.
+   - `PACKAGE`: Prepares immutable review proposal for human confirmation.
+2. **Zero Model Mutation Permissions:** The model has zero database write access and cannot create Jira issues. All mutations require human qualified reviewer seals.

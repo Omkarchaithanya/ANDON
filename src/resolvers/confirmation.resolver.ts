@@ -15,7 +15,10 @@ import * as stalenessService from '../services/staleness.service';
 /**
  * Handles human confirmation of candidate relationship, runs deterministic coverage comparison, and stores review decision.
  */
-export async function handleConfirmRelationship(payload: any, context: any): Promise<ReviewDecision> {
+export async function handleConfirmRelationship(
+  payload: any,
+  context: any
+): Promise<ReviewDecision | { status: 'unknown'; coverage_result: CoverageResult; reason: string }> {
   validateConfirmationInput(payload);
   const { changeIntentId, deploymentId, confirmedAttribute, confirmedValue } = payload;
 
@@ -25,7 +28,7 @@ export async function handleConfirmRelationship(payload: any, context: any): Pro
     throw new AuthorizationError('No authenticated actor account ID found in context.');
   }
 
-  const canConfirm = await authService.canConfirmRelationship(actorAccountId);
+  const canConfirm = await authService.canConfirmRelationship(actorAccountId, deploymentId);
   if (!canConfirm) {
     throw new AuthorizationError('User does not have permission to confirm change relationships.');
   }
@@ -60,32 +63,17 @@ export async function handleConfirmRelationship(payload: any, context: any): Pro
   const evidenceRevisions = await repository.getEvidenceRevisionsByDeploymentId(deploymentId);
   const currentEvidence = evidenceRevisions.find((e) => e.status === 'current') || evidenceRevisions[0];
 
-  // 2. Validate declared scope. If scope is missing or empty, return Unknown and DO NOT mark intent CONFIRMED.
+  // 2. Validate declared scope. If scope is missing or empty, return typed Unknown without inserting a review decision or fake id.
   const declaredScope = currentEvidence?.declared_scope as any;
   if (
     !declaredScope ||
     !Array.isArray(declaredScope.conditions) ||
     declaredScope.conditions.length === 0
   ) {
-    // Empty scope is NOT a coverage gap. It is Unknown. Do not mark intent confirmed.
     return {
-      id: `unknown-${changeIntentId}`,
-      change_intent_id: changeIntentId,
-      deployment_id: deploymentId,
-      evidence_revision_id: currentEvidence?.id || null,
+      status: 'unknown',
       coverage_result: CoverageResult.UNKNOWN,
-      coverage_detail: {
-        result: CoverageResult.UNKNOWN,
-        explanation: 'Baseline evidence has no declared operating condition scope. Coverage is Unknown.',
-        unmatched_conditions: [],
-        matched_conditions: [],
-      },
-      reviewer_account_id: actorAccountId,
-      review_status: ReviewStatus.PENDING,
-      followup_creation_status: FollowupCreationStatus.NOT_STARTED,
-      source_versions_at_review: JSON.stringify({}),
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      reason: 'Baseline evidence has no declared operating condition scope. Coverage cannot be determined.',
     };
   }
 
@@ -149,10 +137,15 @@ export async function handleConfirmRelationship(payload: any, context: any): Pro
 
 /**
  * Handles human dismissal of a candidate relationship.
+ * Enforces reviewer authorization policy and rejects empty reasons.
  */
 export async function handleDismissRelationship(payload: any, context: any): Promise<{ success: boolean }> {
   validateDismissalInput(payload);
   const { changeIntentId, reason } = payload;
+
+  if (!reason || typeof reason !== 'string' || !reason.trim()) {
+    throw new ValidationError('A non-empty dismissal reason is required.');
+  }
 
   const actorAccountId = context?.accountId || (await authService.getCurrentUser()).accountId;
   if (!actorAccountId) {
@@ -164,14 +157,20 @@ export async function handleDismissRelationship(payload: any, context: any): Pro
     throw new NotFoundError('ChangeIntent', changeIntentId);
   }
 
-  await repository.dismissChangeIntent(changeIntentId, actorAccountId, reason);
+  // Enforce reviewer policy fail-closed
+  const canDismiss = await authService.canConfirmRelationship(actorAccountId, (intent as any).deployment_id);
+  if (!canDismiss) {
+    throw new AuthorizationError('User does not have permission to dismiss change relationships under active reviewer policy.');
+  }
+
+  await repository.dismissChangeIntent(changeIntentId, actorAccountId, reason.trim());
 
   await repository.insertAuditLog({
     action_type: ActionType.RELATIONSHIP_DISMISSED,
     entity_type: 'change_intent',
     entity_id: changeIntentId,
     actor_account_id: actorAccountId,
-    detail: { reason },
+    detail: { reason: reason.trim() },
   });
 
   return { success: true };

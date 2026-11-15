@@ -8,7 +8,7 @@
  * decisions are flagged so users know the underlying data may have changed.
  */
 
-import { ActionType, SourceType } from '../models/enums';
+import { ActionType, SourceType, EvidenceStatus, ReviewStatus } from '../models/enums';
 import { ReviewDecision } from '../models/entities';
 import {
   ExternalApiError,
@@ -16,7 +16,7 @@ import {
   ValidationError,
 } from '../utils/errors';
 import { isNonEmptyString } from '../utils/validation';
-import { computeFingerprint } from '../utils/content-fingerprint';
+import { computeFingerprint, computeJiraIssueFingerprint } from '../utils/content-fingerprint';
 import * as repository from '../db/repository';
 import * as confluenceService from './confluence.service';
 import * as jiraService from './jira.service';
@@ -96,14 +96,11 @@ export async function checkSourceStaleness(
 
       case SourceType.JIRA: {
         const issue = await jiraService.getIssue(sourceId);
-        // For Jira, compute a content fingerprint from summary + description
-        const contentForFingerprint = [
-          issue.fields.summary || '',
-          typeof issue.fields.description === 'string'
-            ? issue.fields.description
-            : '',
-        ].join('\n');
-        currentVersion = computeFingerprint(contentForFingerprint);
+        // For Jira, compute a deterministic content fingerprint from summary + ADF description
+        currentVersion = computeJiraIssueFingerprint(
+          issue.fields?.summary || (issue as any).summary || '',
+          issue.fields?.description ?? (issue as any).description
+        );
         break;
       }
 
@@ -170,7 +167,7 @@ export async function markEvidenceStale(
   }
 
   // Update the evidence status to STALE
-  await repository.updateEvidenceRevisionStatus(evidenceId, 'STALE');
+  await repository.updateEvidenceRevisionStatus(evidenceId, EvidenceStatus.STALE);
 
   // Log the staleness action
   await repository.insertAuditLog({
@@ -206,7 +203,7 @@ export async function markReviewDecisionStale(
     throw new NotFoundError('ReviewDecision', reviewId);
   }
 
-  await repository.updateReviewDecisionStatus(reviewId, 'STALE');
+  await repository.updateReviewDecisionStatus(reviewId, ReviewStatus.STALE);
 
   await repository.insertAuditLog({
     action_type: ActionType.ASSESSMENT_MARKED_STALE,
@@ -295,13 +292,10 @@ export async function refreshSourceVersion(
 
     case SourceType.JIRA: {
       const issue = await jiraService.getIssue(sourceId);
-      const contentForFingerprint = [
-        issue.fields.summary || '',
-        typeof issue.fields.description === 'string'
-          ? issue.fields.description
-          : '',
-      ].join('\n');
-      version = computeFingerprint(contentForFingerprint);
+      version = computeJiraIssueFingerprint(
+        issue.fields?.summary || (issue as any).summary || '',
+        issue.fields?.description ?? (issue as any).description
+      );
       break;
     }
 

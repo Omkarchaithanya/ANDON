@@ -54,13 +54,13 @@ export const StaleRibbon: React.FC<StaleRibbonProps> = ({
                 <div className="delta-item">
                   <span className="delta-label">ASSESSED AT REV {reviewedVersion}</span>
                   <p className="mono" style={{ fontSize: '12px' }}>
-                    “Observed route/perception results apply to AMR-12, camera configuration C4, Aisle 7, existing matte epoxy finish.”
+                    Document content evaluated at revision {reviewedVersion}.
                   </p>
                 </div>
                 <div className="delta-item">
                   <span className="delta-label">LIVE PAGE AT REV {currentVersion}</span>
                   <p className="mono" style={{ fontSize: '12px' }}>
-                    “Observed route/perception results apply to AMR-12, camera configuration C4, Aisle 7, [UPDATED SPECIFICATION].”
+                    Document content modified at revision {currentVersion}. Re-evaluation is required.
                   </p>
                 </div>
               </div>
@@ -77,3 +77,4 @@ export const StaleRibbon: React.FC<StaleRibbonProps> = ({
   );
 };
 
+export default StaleRibbon;

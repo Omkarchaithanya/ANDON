@@ -5,7 +5,7 @@
  * No hardcoded entities, IDs, or mock data. All context is fetched live from Jira, Confluence, and Teamwork Graph.
  */
 
-import { DiscoveryStatus, ActionType } from '../models/enums';
+import { DiscoveryStatus, ActionType, SourceType } from '../models/enums';
 import { ChangeIntent, ExtractionProposal } from '../models/entities';
 import { ValidationError, NotFoundError } from '../utils/errors';
 import { isNonEmptyString } from '../utils/validation';
@@ -19,13 +19,15 @@ import * as authService from '../services/authorization.service';
 import * as idempotencyService from '../services/idempotency.service';
 import * as configService from '../services/config.service';
 import { executeBoundedPipeline } from '../agent/brain';
+import { adfToPlainText } from '../utils/adf';
 
 /**
  * Retrieves the live Jira issue context and any existing change intents for this ticket.
  */
 export async function handleGetDiscoveryContext(payload: any, context: any): Promise<any> {
-  const issueId = payload?.issueId || context?.extension?.issue?.id;
-  const issueKey = payload?.issueKey || context?.extension?.issue?.key;
+  // Panel context issue id/key wins over payload issue id/key
+  const issueId = context?.extension?.issue?.id || payload?.issueId;
+  const issueKey = context?.extension?.issue?.key || payload?.issueKey;
 
   if (!isNonEmptyString(issueId) && !isNonEmptyString(issueKey)) {
     throw new ValidationError('A valid Jira Issue ID or Key is required to load discovery context.');
@@ -50,14 +52,21 @@ export async function handleGetDiscoveryContext(payload: any, context: any): Pro
     }
   }
 
+  const rawDescription = issue.fields?.description ?? (issue as any).description;
+  const plainDescription = adfToPlainText(rawDescription);
+
+  const primaryIntent = existingIntents && existingIntents.length > 0 ? existingIntents[0] : null;
+
   return {
     issue: {
       id: issue.id,
       key: issue.key,
       summary: issue.fields?.summary || (issue as any).summary || '',
-      description: issue.fields?.description || (issue as any).description || '',
+      description: plainDescription,
       status: issue.fields?.status?.name || (issue as any).status?.name || '',
     },
+    location: (primaryIntent as any)?.zone_name || primaryIntent?.zone_id || 'Unknown',
+    effectiveDate: primaryIntent?.effective_date || 'Unscheduled',
     changeIntents: existingIntents,
     siteRegistryPageId: config?.siteRegistryPageId || null,
     defaultFollowupProjectKey: config?.defaultFollowupProjectKey || '',
@@ -74,7 +83,7 @@ export async function handleRunDiscovery(
   payload: any,
   context: any
 ): Promise<{ candidates: ChangeIntent[]; message: string }> {
-  const issueId = payload?.issueId || context?.extension?.issue?.id;
+  const issueId = context?.extension?.issue?.id || payload?.issueId;
   if (!isNonEmptyString(issueId)) {
     throw new ValidationError('Valid Jira Issue ID is required to run discovery.');
   }
@@ -87,7 +96,7 @@ export async function handleRunDiscovery(
   const siteRegistryPageId = config.siteRegistryPageId;
 
   // 2. Query Teamwork Graph for linked engineering pages and owners
-  const graphContext = await teamworkGraphService.discoverGraphContext(siteRegistryPageId);
+  const graphContext = await teamworkGraphService.discoverGraphContext(siteRegistryPageId, context?.cloudId);
   const linkedPages = graphContext.linked_pages;
 
   if (!linkedPages || linkedPages.length === 0) {
@@ -102,10 +111,7 @@ export async function handleRunDiscovery(
     title: p.title || p.page_id,
   }));
 
-  const summary = issue.fields?.summary || (issue as any).summary || '';
-  const description = issue.fields?.description || (issue as any).description || '';
-
-  const pipelineResult = await executeBoundedPipeline(issue.id, preloadedPages);
+  const pipelineResult = await executeBoundedPipeline(issue.id, preloadedPages, context?.cloudId);
 
   if (pipelineResult.status === 'COMPLETED' && pipelineResult.changeIntentId) {
     const candidate = await repository.getChangeIntentById(pipelineResult.changeIntentId);
@@ -140,8 +146,9 @@ export async function handleRunDiscovery(
 
 /**
  * Retrieves a single change intent by ID.
+ * Enforces source access permissions and redacts quotes if forbidden.
  */
-export async function handleGetChangeIntent(payload: any): Promise<ChangeIntent> {
+export async function handleGetChangeIntent(payload: any, context?: any): Promise<ChangeIntent> {
   const { id } = payload || {};
   if (!isNonEmptyString(id)) {
     throw new ValidationError('Change intent ID is required.');
@@ -150,5 +157,18 @@ export async function handleGetChangeIntent(payload: any): Promise<ChangeIntent>
   if (!intent) {
     throw new NotFoundError('ChangeIntent', id);
   }
+
+  try {
+    const actorAccountId = context?.accountId || (await authService.getCurrentUser().catch(() => null))?.accountId;
+    if (actorAccountId && intent.jira_issue_id) {
+      const hasJiraAccess = await authService.canAccessSource(actorAccountId, SourceType.JIRA, intent.jira_issue_id);
+      if (!hasJiraAccess) {
+        intent.source_quoted_text = '[ACCESS RESTRICTED: Jira issue read permission required]';
+      }
+    }
+  } catch {
+    // If access check fails, keep fail-safe
+  }
+
   return intent;
 }

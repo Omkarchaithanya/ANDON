@@ -1,14 +1,26 @@
 #!/usr/bin/env node
 /**
  * @file scripts/no-fakes.js
- * @description Scanner ensuring production source code contains no fake flags,
- * simulated bridges, or hardcoded benchmark fallbacks in production paths.
+ * @description Scanner ensuring production source code and builds contain no fake flags,
+ * simulated bridges, hardcoded benchmark fallbacks, or demo payloads.
  */
 
 const fs = require('fs');
 const path = require('path');
 
-const FORBIDDEN_PATTERNS = [
+// Break strings up so the scanner file itself doesn't trigger false positives
+const FORBIDDEN_WORDS = [
+  ['FAC', '-1042'].join(''),
+  ['AMR', '-12'].join(''),
+  ['Page', ' 10482'].join(''),
+  ['Page', ' 10483'].join(''),
+  ['Hotel', ' Booking Agent'].join(''),
+  ['mock', '-data'].join(''),
+  ['__isStandalone', 'Dev'].join(''),
+  ['fallback', 'Invoke'].join(''),
+];
+
+const FORBIDDEN_REGEXES = [
   /mockBridge/i,
   /fakeForge/i,
   /simulateForge/i,
@@ -16,7 +28,8 @@ const FORBIDDEN_PATTERNS = [
   /__FORGE_MOCK__/i,
 ];
 
-const SCAN_DIRS = ['src'];
+const SCAN_DIRS = ['src', 'static/frontend/src', 'scripts'];
+const BUILD_DIR = 'static/frontend/build';
 
 let hasErrors = false;
 
@@ -28,13 +41,31 @@ function scanDir(dir) {
 
   for (const entry of entries) {
     const resPath = path.join(fullPath, entry.name);
+    // Skip self
+    if (resPath === __filename) continue;
+
     if (entry.isDirectory()) {
       scanDir(path.relative(path.resolve(__dirname, '..'), resPath));
-    } else if (entry.isFile() && (entry.name.endsWith('.ts') || entry.name.endsWith('.js'))) {
+    } else if (
+      entry.isFile() &&
+      (entry.name.endsWith('.ts') ||
+        entry.name.endsWith('.tsx') ||
+        entry.name.endsWith('.js') ||
+        entry.name.endsWith('.jsx') ||
+        entry.name.endsWith('.html'))
+    ) {
       const content = fs.readFileSync(resPath, 'utf8');
-      FORBIDDEN_PATTERNS.forEach((pattern) => {
+
+      FORBIDDEN_WORDS.forEach((word) => {
+        if (content.includes(word)) {
+          console.error(`[NO-FAKES VIOLATION] ${resPath} contained forbidden test/benchmark fixture: "${word}"`);
+          hasErrors = true;
+        }
+      });
+
+      FORBIDDEN_REGEXES.forEach((pattern) => {
         if (pattern.test(content)) {
-          console.error(`[NO-FAKES VIOLATION] ${resPath} matched forbidden pattern: ${pattern}`);
+          console.error(`[NO-FAKES VIOLATION] ${resPath} matched forbidden fake/mock pattern: ${pattern}`);
           hasErrors = true;
         }
       });
@@ -42,15 +73,20 @@ function scanDir(dir) {
   }
 }
 
+console.log('[NO-FAKES] Scanning source directories: ' + SCAN_DIRS.join(', '));
 for (const dir of SCAN_DIRS) {
   scanDir(dir);
 }
 
-if (hasErrors) {
-  console.error('[NO-FAKES] Shipped production code contains forbidden fake/simulation flags!');
-  process.exit(1);
-} else {
-  console.log('[NO-FAKES] Clean: 0 fake or simulation patterns found in production code.');
-  process.exit(0);
+if (fs.existsSync(path.resolve(__dirname, '..', BUILD_DIR))) {
+  console.log('[NO-FAKES] Scanning build output directory: ' + BUILD_DIR);
+  scanDir(BUILD_DIR);
 }
 
+if (hasErrors) {
+  console.error('\n[NO-FAKES FAILED] Shipped production code contains forbidden fake/simulation flags or hardcoded benchmark fixtures!');
+  process.exit(1);
+} else {
+  console.log('[NO-FAKES PASSED] Clean: 0 fake, simulation, or hardcoded benchmark patterns found.');
+  process.exit(0);
+}

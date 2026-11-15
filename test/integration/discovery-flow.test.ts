@@ -70,6 +70,13 @@ jest.mock('../../src/services/authorization.service', () => ({
 }));
 
 jest.mock('../../src/services/config.service', () => ({
+  CONFIG_KEYS: {
+    SITE_REGISTRY_PAGE_ID: 'SITE_REGISTRY_PAGE_ID',
+    DEFAULT_FOLLOWUP_PROJECT_KEY: 'DEFAULT_FOLLOWUP_PROJECT_KEY',
+    ENVIRONMENT: 'ENVIRONMENT',
+    REVIEWER_POLICY: 'REVIEWER_POLICY',
+    MAX_TRAVERSAL_DEPTH: 'MAX_TRAVERSAL_DEPTH',
+  },
   getValidatedConfig: jest.fn().mockResolvedValue({
     siteRegistryPageId: 'conf-page-site-registry-001',
     defaultFollowupProjectKey: 'ROBOT',
