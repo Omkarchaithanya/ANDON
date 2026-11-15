@@ -24,6 +24,7 @@ import { DiscoveryStatus } from '../models/enums';
 import { computeFingerprint, computeJiraIssueFingerprint } from '../utils/content-fingerprint';
 import { adfToPlainText } from '../utils/adf';
 import { CONFIG_KEYS } from '../services/config.service';
+import * as idempotencyService from '../services/idempotency.service';
 import * as repository from '../db/repository';
 
 export enum PipelineStep {
@@ -167,16 +168,16 @@ export async function executeBoundedPipeline(
     };
   }
 
-  // Fetch actual bodies for linked pages to verify commissioning quotes
-  const linkedBodies: string[] = [];
-  for (const lp of linkedPages) {
-    try {
-      const page = await getPageWithVersion(lp.id);
-      linkedBodies.push(page.content || '');
-    } catch {
-      // If a linked page cannot be read due to permissions or errors, continue
+  // Fetch actual bodies for linked pages in parallel to verify commissioning quotes (C19 & C18)
+  const pageFetchResults = await Promise.allSettled(
+    linkedPages.map((lp) => getPageWithVersion(lp.id))
+  );
+  const linkedPageMap = new Map<string, string>();
+  pageFetchResults.forEach((res, idx) => {
+    if (res.status === 'fulfilled' && res.value?.content) {
+      linkedPageMap.set(linkedPages[idx].id, res.value.content);
     }
-  }
+  });
 
   // -------------------------------------------------------------------------
   // Step 3: GROUND (Exact NFKC quote verification, no LLM)
@@ -217,6 +218,21 @@ export async function executeBoundedPipeline(
     };
   }
 
+  // C18: Ground commissioning quote against live Confluence baseline page content
+  if (matchedCondition.source_confluence_page_id && matchedCondition.source_quoted_text) {
+    const baselineText = linkedPageMap.get(matchedCondition.source_confluence_page_id);
+    if (baselineText) {
+      const baselineQuoteCheck = verifyExactQuote(baselineText, matchedCondition.source_quoted_text);
+      if (!baselineQuoteCheck.verified) {
+        return {
+          status: 'UNKNOWN',
+          stepReached: PipelineStep.GROUND,
+          reason: `Baseline condition quote "${matchedCondition.source_quoted_text}" does not match Confluence page ${matchedCondition.source_confluence_page_id} content.`,
+        };
+      }
+    }
+  }
+
   const declaredScope: DeclaredScope = {
     conditions: [
       {
@@ -237,6 +253,27 @@ export async function executeBoundedPipeline(
   // Step 5: PACKAGE (Human gate preparation, no write)
   // -------------------------------------------------------------------------
   const fingerprint = computeJiraIssueFingerprint(issueSummary, rawDescription);
+  const idempotencyKey = idempotencyService.generateChangeIntentKey(
+    issue.id,
+    extraction.attribute,
+    extraction.proposedValue
+  );
+
+  const existing = await repository.getChangeIntentByIdempotencyKey(idempotencyKey);
+  if (existing && existing.content_fingerprint === fingerprint) {
+    return {
+      status: 'COMPLETED',
+      stepReached: PipelineStep.PACKAGE,
+      changeIntentId: existing.id,
+      details: {
+        issueKey: issue.key,
+        attribute: extraction.attribute,
+        coverageResult: coverage.result,
+        quoteVerified: true,
+        deduplicated: true,
+      },
+    };
+  }
 
   const created = await repository.insertChangeIntent({
     jira_issue_id: issue.id,
@@ -250,7 +287,7 @@ export async function executeBoundedPipeline(
     content_fingerprint: fingerprint,
     discovery_status: DiscoveryStatus.CANDIDATE,
     llm_reasoning: extraction.reasoning,
-    idempotency_key: `idem-${issue.key}-${extraction.attribute}`,
+    idempotency_key: idempotencyKey,
   });
 
   return {

@@ -23,7 +23,7 @@ export async function handleConfirmRelationship(
   const { changeIntentId, deploymentId, confirmedAttribute, confirmedValue } = payload;
 
   // Derive actor account ID from Forge context, never from payload
-  const actorAccountId = context?.accountId || (await authService.getCurrentUser()).accountId;
+  const actorAccountId = context?.localAccountId || context?.accountId || (await authService.getCurrentUser()).accountId;
   if (!actorAccountId) {
     throw new AuthorizationError('No authenticated actor account ID found in context.');
   }
@@ -147,7 +147,7 @@ export async function handleDismissRelationship(payload: any, context: any): Pro
     throw new ValidationError('A non-empty dismissal reason is required.');
   }
 
-  const actorAccountId = context?.accountId || (await authService.getCurrentUser()).accountId;
+  const actorAccountId = context?.localAccountId || context?.accountId || (await authService.getCurrentUser()).accountId;
   if (!actorAccountId) {
     throw new AuthorizationError('No authenticated actor account ID found in context.');
   }

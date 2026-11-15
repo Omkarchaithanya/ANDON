@@ -4,10 +4,14 @@
  * substrings of the authoritative source records fetched from Jira or Confluence.
  */
 
+import { verifyQuoteSubstring } from '../domain/mechanisms';
+
 export interface QuoteVerificationResult {
   verified: boolean;
   startIndex: number;
   endIndex: number;
+  rawStartIndex?: number;
+  rawEndIndex?: number;
   reason?: string;
 }
 
@@ -25,7 +29,7 @@ export function normalizeForVerification(text: string): string {
 
 /**
  * Verifies that a quote is an exact NFKC-normalized substring of the source text.
- * Returns true with exact start and end offsets if verified.
+ * Standardized on domain/mechanisms.verifyQuoteSubstring with raw offset projection.
  */
 export function verifyExactQuote(sourceText: string, quote: string): QuoteVerificationResult {
   if (!sourceText || !quote) {
@@ -37,20 +41,8 @@ export function verifyExactQuote(sourceText: string, quote: string): QuoteVerifi
     };
   }
 
-  const normSource = normalizeForVerification(sourceText);
-  const normQuote = normalizeForVerification(quote);
-
-  if (!normSource || !normQuote) {
-    return {
-      verified: false,
-      startIndex: -1,
-      endIndex: -1,
-      reason: 'Normalized source text or quote is empty',
-    };
-  }
-
-  const index = normSource.indexOf(normQuote);
-  if (index === -1) {
+  const res = verifyQuoteSubstring(sourceText, quote);
+  if (!res.verified) {
     return {
       verified: false,
       startIndex: -1,
@@ -61,8 +53,12 @@ export function verifyExactQuote(sourceText: string, quote: string): QuoteVerifi
 
   return {
     verified: true,
-    startIndex: index,
-    endIndex: index + normQuote.length,
+    startIndex: res.startIndex,
+    endIndex: res.endIndex,
+    rawStartIndex: res.rawStartIndex,
+    rawEndIndex: res.rawEndIndex,
   };
 }
+
+export { verifyQuoteSubstring };
 

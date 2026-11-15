@@ -45,11 +45,13 @@ export async function handleGetDiscoveryContext(payload: any, context: any): Pro
   }
 
   let graphContext: any = null;
+  let graphError: string | null = null;
   if (config?.siteRegistryPageId) {
     try {
       graphContext = await teamworkGraphService.discoverGraphContext(config.siteRegistryPageId);
-    } catch {
+    } catch (err: any) {
       graphContext = null;
+      graphError = err?.message || 'Failed to query Teamwork Graph.';
     }
   }
 
@@ -66,13 +68,14 @@ export async function handleGetDiscoveryContext(payload: any, context: any): Pro
       description: plainDescription,
       status: issue.fields?.status?.name || (issue as any).status?.name || '',
     },
-    location: (primaryIntent as any)?.zone_name || primaryIntent?.zone_id || 'Unknown',
-    effectiveDate: primaryIntent?.effective_date || 'Unscheduled',
+    location: (primaryIntent as any)?.zone_name || primaryIntent?.zone_id || null,
+    effectiveDate: primaryIntent?.effective_date || null,
     changeIntents: existingIntents,
     siteRegistryPageId: config?.siteRegistryPageId || null,
     defaultFollowupProjectKey: config?.defaultFollowupProjectKey || '',
     isConfigured: Boolean(config?.siteRegistryPageId),
     graphContext,
+    graphError,
   };
 }
 

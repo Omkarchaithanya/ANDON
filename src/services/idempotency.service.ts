@@ -13,6 +13,7 @@ import { ValidationError } from '../utils/errors';
 import { isNonEmptyString, generateIdempotencyKey } from '../utils/validation';
 import * as repository from '../db/repository';
 import * as jiraService from './jira.service';
+import * as configService from './config.service';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -230,7 +231,15 @@ export async function reconcileUncertainAction(
   }
 
   const idempotency_key = actionRecord.followup_idempotency_key;
-  const project_key = (actionRecord as any).project_key || 'ROBOT';
+  let project_key = (actionRecord as any).project_key;
+  if (!project_key) {
+    try {
+      const config = await configService.getValidatedConfig();
+      project_key = config.defaultFollowupProjectKey || null;
+    } catch {
+      project_key = null;
+    }
+  }
   const followup_jira_issue_key = actionRecord.followup_jira_issue_key;
 
   // If we already have the Jira issue key, it's already resolved

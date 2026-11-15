@@ -205,9 +205,19 @@ export function extractPlainText(storageBody: string): string {
   // Remove CDATA sections but keep their content
   text = text.replace(/<!\[CDATA\[([\s\S]*?)]]>/g, '$1');
 
+  // Strip script and style blocks entirely
+  text = text.replace(/<(script|style)[^>]*>[\s\S]*?<\/\1>/gi, '');
+
+  // Strip macro parameters entirely (these contain configuration/metadata, not authored content)
+  text = text.replace(/<ac:parameter[^>]*>[\s\S]*?<\/ac:parameter>/gi, ' ');
+
+  // Unwrap Confluence rich text and layout wrappers with clean whitespace boundaries
+  text = text.replace(/<\/?ac:(structured-macro|rich-text-body|plain-text-body|task-list|task|layout|layout-section|layout-cell)[^>]*>/gi, '\n');
+
   // Replace block-level elements with newlines for readability
   text = text.replace(/<\/(p|div|tr|li|h[1-6]|table|thead|tbody|blockquote)>/gi, '\n');
   text = text.replace(/<(br|hr)\s*\/?>/gi, '\n');
+  text = text.replace(/<\/(td|th)>/gi, ' ');
 
   // Replace list items with a dash prefix for readability
   text = text.replace(/<li[^>]*>/gi, '- ');
@@ -238,13 +248,11 @@ export function extractPlainText(storageBody: string): string {
   text = text.replace(/\n{3,}/g, '\n\n');
 
   // Trim each line individually and remove leading/trailing whitespace
-  text = text
+  return text
     .split('\n')
     .map((line) => line.trim())
     .join('\n')
     .trim();
-
-  return text;
 }
 
 /**
