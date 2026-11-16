@@ -99,6 +99,24 @@ export async function getSiteById(id: string): Promise<Site | null> {
   return site;
 }
 
+export async function getSiteByName(name: string): Promise<Site | null> {
+  const result = await executeSql(SITES_QUERIES.findByName, [name]);
+  const row = result.rows?.[0];
+  if (!row) return null;
+  const site: Site = mapRow(row, ['id', 'name', 'confluence_page_id', 'confluence_page_version', 'metadata', 'created_at', 'updated_at']);
+  site.metadata = safeJsonParse(site.metadata, null);
+  return site;
+}
+
+export async function getSiteByConfluencePageId(pageId: string): Promise<Site | null> {
+  const result = await executeSql(SITES_QUERIES.findByConfluencePageId, [pageId]);
+  const row = result.rows?.[0];
+  if (!row) return null;
+  const site: Site = mapRow(row, ['id', 'name', 'confluence_page_id', 'confluence_page_version', 'metadata', 'created_at', 'updated_at']);
+  site.metadata = safeJsonParse(site.metadata, null);
+  return site;
+}
+
 export async function insertSite(input: CreateSiteInput): Promise<Site> {
   const id = generateId();
   const metaStr = safeJsonStringify(input.metadata);
@@ -134,6 +152,33 @@ export async function getZoneByName(name: string): Promise<Zone | null> {
   return zone;
 }
 
+export async function getZoneByNameAndSiteId(name: string, siteId: string): Promise<Zone | null> {
+  const result = await executeSql(ZONES_QUERIES.findByNameAndSiteId, [name, siteId]);
+  const row = result.rows?.[0];
+  if (!row) return null;
+  const zone: Zone = mapRow(row, ['id', 'site_id', 'name', 'zone_type', 'confluence_page_id', 'metadata', 'created_at', 'updated_at']);
+  zone.metadata = safeJsonParse(zone.metadata, null);
+  return zone;
+}
+
+export async function getZonesBySiteId(siteId: string): Promise<Zone[]> {
+  const result = await executeSql(ZONES_QUERIES.findBySiteId, [siteId]);
+  return (result.rows || []).map((row: any) => {
+    const zone: Zone = mapRow(row, ['id', 'site_id', 'name', 'zone_type', 'confluence_page_id', 'metadata', 'created_at', 'updated_at']);
+    zone.metadata = safeJsonParse(zone.metadata, null);
+    return zone;
+  });
+}
+
+export async function getAllZones(): Promise<Zone[]> {
+  const result = await executeSql(ZONES_QUERIES.findAll, []);
+  return (result.rows || []).map((row: any) => {
+    const zone: Zone = mapRow(row, ['id', 'site_id', 'name', 'zone_type', 'confluence_page_id', 'metadata', 'created_at', 'updated_at']);
+    zone.metadata = safeJsonParse(zone.metadata, null);
+    return zone;
+  });
+}
+
 export async function insertZone(input: CreateZoneInput): Promise<Zone> {
   const id = generateId();
   const metaStr = safeJsonStringify(input.metadata);
@@ -154,6 +199,15 @@ export async function insertZone(input: CreateZoneInput): Promise<Zone> {
 
 export async function getDeploymentById(id: string): Promise<Deployment | null> {
   const result = await executeSql(DEPLOYMENTS_QUERIES.findById, [id]);
+  const row = result.rows?.[0];
+  if (!row) return null;
+  const deploy: Deployment = mapRow(row, ['id', 'zone_id', 'deployment_identifier', 'confluence_page_id', 'confluence_page_version', 'owner_account_id', 'status', 'metadata', 'created_at', 'updated_at']);
+  deploy.metadata = safeJsonParse(deploy.metadata, null);
+  return deploy;
+}
+
+export async function getDeploymentByIdentifier(identifier: string): Promise<Deployment | null> {
+  const result = await executeSql(DEPLOYMENTS_QUERIES.findByIdentifier, [identifier]);
   const row = result.rows?.[0];
   if (!row) return null;
   const deploy: Deployment = mapRow(row, ['id', 'zone_id', 'deployment_identifier', 'confluence_page_id', 'confluence_page_version', 'owner_account_id', 'status', 'metadata', 'created_at', 'updated_at']);

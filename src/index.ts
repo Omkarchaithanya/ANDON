@@ -4,7 +4,6 @@
  */
 
 export { handler } from './resolvers/index';
-export { blockRelease } from './resolvers/workflow.resolver';
 export { onJiraEvent, onConfluenceEvent } from './handlers/index';
 export { onInstallOrUpgrade } from './handlers/install';
 export { processQueueEvent } from './handlers/queue-consumer';

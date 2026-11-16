@@ -9,7 +9,7 @@ import { DiscoveryStatus, ActionType, SourceType } from '../models/enums';
 import { ChangeIntent, ExtractionProposal } from '../models/entities';
 import { ValidationError, NotFoundError } from '../utils/errors';
 import { isNonEmptyString } from '../utils/validation';
-import { computeFingerprint } from '../utils/content-fingerprint';
+import { computeFingerprint, computeJiraIssueFingerprint } from '../utils/content-fingerprint';
 import * as repository from '../db/repository';
 import * as jiraService from '../services/jira.service';
 import * as confluenceService from '../services/confluence.service';
@@ -20,7 +20,6 @@ import * as idempotencyService from '../services/idempotency.service';
 import * as configService from '../services/config.service';
 import { executeBoundedPipeline } from '../agent/brain';
 import { adfToPlainText } from '../utils/adf';
-import { Queue } from '@forge/events';
 
 /**
  * Retrieves the live Jira issue context and any existing change intents for this ticket.
@@ -46,9 +45,13 @@ export async function handleGetDiscoveryContext(payload: any, context: any): Pro
 
   let graphContext: any = null;
   let graphError: string | null = null;
-  if (config?.siteRegistryPageId) {
+  const cloudId = context?.cloudId;
+
+  if (!cloudId) {
+    graphError = 'Missing cloudId in request context; Teamwork Graph traversal requires cloudId.';
+  } else if (config?.siteRegistryPageId) {
     try {
-      graphContext = await teamworkGraphService.discoverGraphContext(config.siteRegistryPageId);
+      graphContext = await teamworkGraphService.discoverGraphContext(config.siteRegistryPageId, cloudId);
     } catch (err: any) {
       graphContext = null;
       graphError = err?.message || 'Failed to query Teamwork Graph.';
@@ -57,8 +60,71 @@ export async function handleGetDiscoveryContext(payload: any, context: any): Pro
 
   const rawDescription = issue.fields?.description ?? (issue as any).description;
   const plainDescription = adfToPlainText(rawDescription);
+  const currentFingerprint = computeJiraIssueFingerprint(
+    issue.fields?.summary || (issue as any).summary || '',
+    plainDescription
+  );
 
-  const primaryIntent = existingIntents && existingIntents.length > 0 ? existingIntents[0] : null;
+  // Join zone name, deployment identifier, and current documented condition onto each intent
+  const joinedIntents = await Promise.all(
+    existingIntents.map(async (intent: any) => {
+      let zoneName: string | null = null;
+      let deploymentIdentifier: string | null = null;
+      let currentValue: string | null = null;
+
+      if (intent.zone_id) {
+        const zone = await repository.getZoneById(intent.zone_id);
+        if (zone) {
+          zoneName = zone.name;
+          const deployments = await repository.getDeploymentsByZoneId(zone.id);
+          const activeDep = deployments.find((d) => d.status === 'active') || deployments[0];
+          if (activeDep) {
+            deploymentIdentifier = activeDep.deployment_identifier;
+            if (intent.proposed_attribute) {
+              const conditions = await repository.getConditionsByDeploymentId(activeDep.id);
+              const matchedCond = conditions.find((c) => c.attribute_name === intent.proposed_attribute);
+              if (matchedCond) {
+                currentValue = matchedCond.attribute_value;
+              }
+            }
+          }
+        }
+      }
+
+      // Recompute fingerprint and mark stale only if content changed
+      if (
+        intent.content_fingerprint &&
+        intent.content_fingerprint !== currentFingerprint &&
+        intent.discovery_status === DiscoveryStatus.CANDIDATE
+      ) {
+        await repository.updateChangeIntentStatus(intent.id, DiscoveryStatus.STALE);
+        intent.discovery_status = DiscoveryStatus.STALE;
+        await repository.insertAuditLog({
+          action_type: ActionType.ASSESSMENT_MARKED_STALE,
+          entity_type: 'change_intent',
+          entity_id: intent.id,
+          actor_account_id: context?.localAccountId || context?.accountId || 'system:fingerprint-evaluator',
+          detail: {
+            reason: 'Source Jira issue summary/description content changed.',
+            previousFingerprint: intent.content_fingerprint,
+            currentFingerprint,
+          },
+        });
+      }
+
+      return {
+        ...intent,
+        zoneName,
+        zone_name: zoneName,
+        deploymentIdentifier,
+        deployment_identifier: deploymentIdentifier,
+        currentValue,
+        current_value: currentValue,
+      };
+    })
+  );
+
+  const primaryIntent = joinedIntents && joinedIntents.length > 0 ? joinedIntents[0] : null;
 
   return {
     issue: {
@@ -68,9 +134,9 @@ export async function handleGetDiscoveryContext(payload: any, context: any): Pro
       description: plainDescription,
       status: issue.fields?.status?.name || (issue as any).status?.name || '',
     },
-    location: (primaryIntent as any)?.zone_name || primaryIntent?.zone_id || null,
+    location: primaryIntent?.zoneName || (primaryIntent as any)?.zone_name || primaryIntent?.zone_id || null,
     effectiveDate: primaryIntent?.effective_date || null,
-    changeIntents: existingIntents,
+    changeIntents: joinedIntents,
     siteRegistryPageId: config?.siteRegistryPageId || null,
     defaultFollowupProjectKey: config?.defaultFollowupProjectKey || '',
     isConfigured: Boolean(config?.siteRegistryPageId),
@@ -86,13 +152,13 @@ export async function handleGetDiscoveryContext(payload: any, context: any): Pro
 export async function handleRunDiscovery(
   payload: any,
   context: any
-): Promise<{ candidates: ChangeIntent[]; message: string; pending?: boolean }> {
+): Promise<{ candidates: ChangeIntent[]; message: string }> {
   const issueId = context?.extension?.issue?.id || payload?.issueId;
   if (!isNonEmptyString(issueId)) {
     throw new ValidationError('Valid Jira Issue ID is required to run discovery.');
   }
 
-  const user = await authService.getCurrentUser();
+  const actorAccountId = context?.localAccountId || context?.accountId || (await authService.getCurrentUser()).accountId;
   const issue = await jiraService.getIssue(issueId);
 
   // 1. Retrieve validated enterprise configuration
@@ -115,64 +181,37 @@ export async function handleRunDiscovery(
     title: p.title || p.page_id,
   }));
 
-  // C5: Async execution via @forge/events queue to prevent Forge 25s timeout
-  try {
-    const eventQueue = new Queue({ key: 'andon-events' });
-    await eventQueue.push({
-      issueKey: issue.id,
-      graphPages: preloadedPages,
-      cloudId: context?.cloudId,
-    } as any);
+  const pipelineResult = await executeBoundedPipeline(issue.id, preloadedPages, context?.cloudId);
+
+  if (pipelineResult.status === 'COMPLETED' && pipelineResult.changeIntentId) {
+    const candidate = await repository.getChangeIntentById(pipelineResult.changeIntentId);
 
     await repository.insertAuditLog({
       action_type: ActionType.DISCOVERY_RUN,
       entity_type: 'jira_issue',
       entity_id: issue.id,
-      actor_account_id: user.accountId,
-      detail: { status: 'ENQUEUED', candidateCount: 0 },
+      actor_account_id: actorAccountId,
+      detail: { candidatesDiscovered: candidate ? 1 : 0 },
     });
 
     return {
-      candidates: [],
-      message: 'Discovery started in background. Refreshing in a few seconds.',
-      pending: true,
-    };
-  } catch (_queueErr: any) {
-    // Graceful fallback for local test execution without live Forge Queue daemon
-    const pipelineResult = await executeBoundedPipeline(issue.id, preloadedPages, context?.cloudId);
-
-    if (pipelineResult.status === 'COMPLETED' && pipelineResult.changeIntentId) {
-      const candidate = await repository.getChangeIntentById(pipelineResult.changeIntentId);
-
-      await repository.insertAuditLog({
-        action_type: ActionType.DISCOVERY_RUN,
-        entity_type: 'jira_issue',
-        entity_id: issue.id,
-        actor_account_id: user.accountId,
-        detail: { candidatesDiscovered: candidate ? 1 : 0 },
-      });
-
-      return {
-        candidates: candidate ? [candidate] : [],
-        message: 'Discovery complete. Identified 1 candidate relationship.',
-        pending: false,
-      };
-    }
-
-    await repository.insertAuditLog({
-      action_type: ActionType.DISCOVERY_RUN,
-      entity_type: 'jira_issue',
-      entity_id: issue.id,
-      actor_account_id: user.accountId,
-      detail: { candidatesDiscovered: 0, reason: pipelineResult.reason },
-    });
-
-    return {
-      candidates: [],
-      message: pipelineResult.reason || 'No candidate relationship identified.',
-      pending: false,
+      candidates: candidate ? [candidate] : [],
+      message: 'Discovery complete. Identified 1 candidate relationship.',
     };
   }
+
+  await repository.insertAuditLog({
+    action_type: ActionType.DISCOVERY_RUN,
+    entity_type: 'jira_issue',
+    entity_id: issue.id,
+    actor_account_id: actorAccountId,
+    detail: { candidatesDiscovered: 0, reason: pipelineResult.reason },
+  });
+
+  return {
+    candidates: [],
+    message: pipelineResult.reason || 'No candidate relationship identified.',
+  };
 }
 
 /**

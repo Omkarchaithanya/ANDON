@@ -5,6 +5,7 @@
 
 export const SITES_QUERIES = {
   findById: `SELECT * FROM sites WHERE id = ?`,
+  findByName: `SELECT * FROM sites WHERE name = ?`,
   findByConfluencePageId: `SELECT * FROM sites WHERE confluence_page_id = ?`,
   insert: `
     INSERT INTO sites (id, name, confluence_page_id, confluence_page_version, metadata, created_at, updated_at)
@@ -19,6 +20,7 @@ export const SITES_QUERIES = {
 
 export const ZONES_QUERIES = {
   findById: `SELECT * FROM zones WHERE id = ?`,
+  findAll: `SELECT * FROM zones`,
   findBySiteId: `SELECT * FROM zones WHERE site_id = ?`,
   findByName: `SELECT * FROM zones WHERE name = ?`,
   findByNameAndSiteId: `SELECT * FROM zones WHERE name = ? AND site_id = ?`,

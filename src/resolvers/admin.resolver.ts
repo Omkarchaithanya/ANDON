@@ -11,6 +11,8 @@ import { isNonEmptyString } from '../utils/validation';
 import * as repository from '../db/repository';
 import * as authService from '../services/authorization.service';
 import * as configService from '../services/config.service';
+import * as confluenceService from '../services/confluence.service';
+import { verifyExactQuote } from '../utils/quote-verifier';
 
 /**
  * Returns current enterprise application configuration.
@@ -58,10 +60,60 @@ export async function handleUpdateAppConfig(payload: any, context: any): Promise
 }
 
 /**
+ * Reads registered zones and deployments from Forge SQL for the configured registry page.
+ * Returns rows matching SiteRegistryView's expected shape:
+ * { rows: [{ zoneName, zoneType, deploymentIdentifier, baselinePageId, baselineVersion, sensorRig }] }
+ */
+export async function handleGetSiteRegistry(payload: any, context: any): Promise<{ rows: any[] }> {
+  const configuredPageId = (await repository.getAppConfig('SITE_REGISTRY_PAGE_ID')) || payload?.pageId;
+
+  // Find site matching pageId or find all zones
+  let zones: any[] = [];
+  if (configuredPageId) {
+    const site = await repository.getSiteByConfluencePageId(configuredPageId);
+    if (site) {
+      zones = await repository.getZonesBySiteId(site.id);
+    }
+  }
+
+  if (zones.length === 0) {
+    zones = await repository.getAllZones();
+  }
+
+  const rows: any[] = [];
+  for (const zone of zones) {
+    const deployments = await repository.getDeploymentsByZoneId(zone.id);
+    if (deployments.length === 0) {
+      rows.push({
+        zoneName: zone.name,
+        zoneType: zone.zone_type || 'General Zone',
+        deploymentIdentifier: 'Unassigned',
+        baselinePageId: zone.confluence_page_id || undefined,
+        baselineVersion: 1,
+        sensorRig: 'Standard',
+      });
+    } else {
+      for (const dep of deployments) {
+        rows.push({
+          zoneName: zone.name,
+          zoneType: zone.zone_type || 'General Zone',
+          deploymentIdentifier: dep.deployment_identifier,
+          baselinePageId: dep.confluence_page_id || undefined,
+          baselineVersion: dep.confluence_page_version || 1,
+          sensorRig: (dep.metadata as any)?.sensorRig || 'Standard',
+        });
+      }
+    }
+  }
+
+  return { rows };
+}
+
+/**
  * Enterprise Onboarding Endpoint: Registers a real facility, deployment, operating conditions, and baseline evidence.
  */
 export async function handleRegisterDeployment(payload: any, context: any): Promise<any> {
-  const user = await authService.getCurrentUser();
+  const actorAccountId = context?.localAccountId || context?.accountId || (await authService.getCurrentUser()).accountId;
   const {
     siteName,
     zoneName,
@@ -78,40 +130,86 @@ export async function handleRegisterDeployment(payload: any, context: any): Prom
     throw new ValidationError('siteName, zoneName, and deploymentIdentifier are required.');
   }
 
-  // 1. Register or find Site
-  const createdSite = await repository.insertSite({
-    name: siteName.trim(),
-    confluence_page_id: confluenceCommissioningPageId || null,
-    confluence_page_version: confluenceCommissioningVersion,
-    metadata: { registeredBy: user.accountId },
-  });
+  // 1. If commissioning page is provided, fetch page and verify quotes verbatim (Item 4)
+  if (confluenceCommissioningPageId) {
+    const page = await confluenceService.getPageWithVersion(confluenceCommissioningPageId);
+    if (!page || !page.content) {
+      throw new ValidationError(`Could not retrieve Confluence commissioning page ${confluenceCommissioningPageId}.`);
+    }
 
-  // 2. Register Zone
-  const createdZone = await repository.insertZone({
-    site_id: createdSite.id,
-    name: zoneName.trim(),
-    zone_type: zoneType as ZoneType,
-    confluence_page_id: confluenceCommissioningPageId || null,
-    metadata: { registeredBy: user.accountId },
-  });
+    if (commissioningSummary && commissioningSummary.trim()) {
+      const summaryCheck = verifyExactQuote(page.content, commissioningSummary.trim());
+      if (!summaryCheck.verified) {
+        throw new ValidationError(
+          `Commissioning summary quote is not a verbatim NFKC substring of Confluence page ${confluenceCommissioningPageId}.`
+        );
+      }
+    }
 
-  // 3. Register Deployment
-  const createdDeployment = await repository.insertDeployment({
-    zone_id: createdZone.id,
-    deployment_identifier: deploymentIdentifier.trim(),
-    confluence_page_id: confluenceCommissioningPageId || null,
-    confluence_page_version: confluenceCommissioningVersion,
-    owner_account_id: ownerAccountId || user.accountId,
-    status: DeploymentStatus.ACTIVE,
-    metadata: { registeredBy: user.accountId },
-  });
+    for (const cond of conditions) {
+      if (cond.quoted_text && cond.quoted_text.trim()) {
+        const quoteCheck = verifyExactQuote(page.content, cond.quoted_text.trim());
+        if (!quoteCheck.verified) {
+          throw new ValidationError(
+            `Condition quote "${cond.quoted_text}" is not a verbatim substring of Confluence page ${confluenceCommissioningPageId}.`
+          );
+        }
+      }
+    }
+  }
 
-  // 4. Register Operating Conditions
+  // 2. Upsert Site (do not duplicate sites)
+  let site = null;
+  if (confluenceCommissioningPageId) {
+    site = await repository.getSiteByConfluencePageId(confluenceCommissioningPageId);
+  }
+  if (!site) {
+    site = await repository.getSiteByName(siteName.trim());
+  }
+  if (!site) {
+    site = await repository.insertSite({
+      name: siteName.trim(),
+      confluence_page_id: confluenceCommissioningPageId || null,
+      confluence_page_version: confluenceCommissioningVersion,
+      metadata: { registeredBy: actorAccountId },
+    });
+  }
+
+  // 3. Upsert Zone
+  let zone = await repository.getZoneByNameAndSiteId(zoneName.trim(), site.id);
+  if (!zone) {
+    zone = await repository.getZoneByName(zoneName.trim());
+  }
+  if (!zone) {
+    zone = await repository.insertZone({
+      site_id: site.id,
+      name: zoneName.trim(),
+      zone_type: zoneType as ZoneType,
+      confluence_page_id: confluenceCommissioningPageId || null,
+      metadata: { registeredBy: actorAccountId },
+    });
+  }
+
+  // 4. Upsert Deployment
+  let deployment = await repository.getDeploymentByIdentifier(deploymentIdentifier.trim());
+  if (!deployment) {
+    deployment = await repository.insertDeployment({
+      zone_id: zone.id,
+      deployment_identifier: deploymentIdentifier.trim(),
+      confluence_page_id: confluenceCommissioningPageId || null,
+      confluence_page_version: confluenceCommissioningVersion,
+      owner_account_id: ownerAccountId || actorAccountId,
+      status: DeploymentStatus.ACTIVE,
+      metadata: { registeredBy: actorAccountId },
+    });
+  }
+
+  // 5. Register Operating Conditions
   const registeredConditions = [];
   for (const cond of conditions) {
     if (cond.attribute_name && cond.attribute_value) {
       const conditionRecord = await repository.insertCondition({
-        deployment_id: createdDeployment.id,
+        deployment_id: deployment.id,
         attribute_name: cond.attribute_name.trim(),
         attribute_value: cond.attribute_value.trim(),
         source_confluence_page_id: confluenceCommissioningPageId || null,
@@ -123,9 +221,9 @@ export async function handleRegisterDeployment(payload: any, context: any): Prom
     }
   }
 
-  // 5. Register Evidence Revision
+  // 6. Register Evidence Revision
   const createdEvidence = await repository.insertEvidenceRevision({
-    deployment_id: createdDeployment.id,
+    deployment_id: deployment.id,
     evidence_type: EvidenceType.COMMISSIONING,
     confluence_page_id: confluenceCommissioningPageId || null,
     confluence_page_version: confluenceCommissioningVersion,
@@ -135,9 +233,9 @@ export async function handleRegisterDeployment(payload: any, context: any): Prom
         attribute_name: c.attribute_name,
         attribute_value: c.attribute_value,
       })),
-      zone_id: createdZone.id,
+      zone_id: zone.id,
     },
-    approved_by: user.accountId,
+    approved_by: actorAccountId,
     approved_at: new Date().toISOString(),
     status: EvidenceStatus.CURRENT,
     metadata: { registeredAt: new Date().toISOString() },
@@ -154,8 +252,8 @@ export async function handleRegisterDeployment(payload: any, context: any): Prom
   await repository.insertAuditLog({
     action_type: ActionType.CONFIG_UPDATED,
     entity_type: 'deployment',
-    entity_id: createdDeployment.id,
-    actor_account_id: user.accountId,
+    entity_id: deployment.id,
+    actor_account_id: actorAccountId,
     detail: {
       deploymentIdentifier,
       zoneName,
@@ -166,7 +264,7 @@ export async function handleRegisterDeployment(payload: any, context: any): Prom
   return {
     success: true,
     message: `Deployment "${deploymentIdentifier}" successfully registered into ANDON.`,
-    deploymentId: createdDeployment.id,
+    deploymentId: deployment.id,
     evidenceId: createdEvidence.id,
   };
 }

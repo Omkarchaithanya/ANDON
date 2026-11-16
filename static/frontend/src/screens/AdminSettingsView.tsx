@@ -170,6 +170,177 @@ export const AdminSettingsView: React.FC<AdminSettingsViewProps> = ({ onBack }) 
           </div>
         </form>
       </div>
+
+      {/* Deployment & Baseline Registration Form (Item 4) */}
+      <RegisterDeploymentCard onRegistered={() => setSaved(true)} />
+    </div>
+  );
+};
+
+interface RegisterDeploymentCardProps {
+  onRegistered?: () => void;
+}
+
+const RegisterDeploymentCard: React.FC<RegisterDeploymentCardProps> = () => {
+  const [siteName, setSiteName] = useState('');
+  const [zoneName, setZoneName] = useState('');
+  const [deploymentIdentifier, setDeploymentIdentifier] = useState('');
+  const [commissioningPageId, setCommissioningPageId] = useState('');
+  const [attributeName, setAttributeName] = useState('surface_finish');
+  const [attributeValue, setAttributeValue] = useState('matte_epoxy');
+  const [quotedText, setQuotedText] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [regError, setRegError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setRegError(null);
+    setSuccessMsg(null);
+
+    try {
+      const res: any = await invoke('registerDeployment', {
+        siteName: siteName.trim(),
+        zoneName: zoneName.trim(),
+        deploymentIdentifier: deploymentIdentifier.trim(),
+        confluenceCommissioningPageId: commissioningPageId.trim() || undefined,
+        conditions: [
+          {
+            attribute_name: attributeName.trim(),
+            attribute_value: attributeValue.trim(),
+            quoted_text: quotedText.trim() || undefined,
+          },
+        ],
+        commissioningSummary: quotedText.trim(),
+      });
+
+      setSuccessMsg(res?.message || `Deployment "${deploymentIdentifier}" registered successfully.`);
+      setTimeout(() => setSuccessMsg(null), 5000);
+    } catch (err: any) {
+      setRegError(err?.message || 'Failed to register deployment.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="andon-card" style={{ maxWidth: '680px', marginTop: '24px' }}>
+      <div className="card-top-row">
+        <div className="card-title-group">
+          <span className="header-icon">🤖</span>
+          <h3 className="card-heading">Register Robotics Deployment &amp; Baseline Evidence</h3>
+        </div>
+        <span className="badge-planned">ONBOARDING</span>
+      </div>
+
+      <p style={{ fontSize: '13px', color: '#475569', margin: '8px 0 16px 0' }}>
+        Registers an autonomous robotics deployment, facility zone, and commissioning baseline into Forge SQL.
+        If a Confluence page ID is provided, quotes must be verbatim substrings.
+      </p>
+
+      {successMsg && (
+        <div style={{ background: '#DCFCE7', color: '#166534', padding: '10px 14px', borderRadius: '6px', marginBottom: '16px', fontSize: '13px' }}>
+          ✓ {successMsg}
+        </div>
+      )}
+
+      {regError && (
+        <div className="redline-alert-box alert-error" style={{ marginBottom: '16px' }}>
+          <strong>Registration Error:</strong> {regError}
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+          <div className="form-group">
+            <label className="form-label">Facility Site Name</label>
+            <input
+              type="text"
+              className="form-input"
+              value={siteName}
+              onChange={(e) => setSiteName(e.target.value)}
+              required
+            />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Zone Name</label>
+            <input
+              type="text"
+              className="form-input"
+              value={zoneName}
+              onChange={(e) => setZoneName(e.target.value)}
+              required
+            />
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+          <div className="form-group">
+            <label className="form-label">Deployment Identifier</label>
+            <input
+              type="text"
+              className="form-input"
+              value={deploymentIdentifier}
+              onChange={(e) => setDeploymentIdentifier(e.target.value)}
+              placeholder="e.g. AGV-01"
+              required
+            />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Confluence Baseline Page ID (Optional)</label>
+            <input
+              type="text"
+              className="form-input"
+              value={commissioningPageId}
+              onChange={(e) => setCommissioningPageId(e.target.value)}
+              placeholder="e.g. 10482"
+            />
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+          <div className="form-group">
+            <label className="form-label">Operating Attribute</label>
+            <input
+              type="text"
+              className="form-input"
+              value={attributeName}
+              onChange={(e) => setAttributeName(e.target.value)}
+              placeholder="e.g. surface_finish"
+              required
+            />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Declared Baseline Value</label>
+            <input
+              type="text"
+              className="form-input"
+              value={attributeValue}
+              onChange={(e) => setAttributeValue(e.target.value)}
+              placeholder="e.g. matte_epoxy"
+              required
+            />
+          </div>
+        </div>
+
+        <div className="form-group">
+          <label className="form-label">Verbatim Commissioning Quote / Excerpt</label>
+          <textarea
+            className="form-input"
+            rows={3}
+            value={quotedText}
+            onChange={(e) => setQuotedText(e.target.value)}
+            placeholder="Verbatim quote from the Confluence commissioning page establishing this baseline..."
+          />
+        </div>
+
+        <div style={{ marginTop: '8px' }}>
+          <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
+            {isSubmitting ? 'Verifying & Registering...' : 'Register Deployment into Forge SQL'}
+          </button>
+        </div>
+      </form>
     </div>
   );
 };

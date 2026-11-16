@@ -208,8 +208,8 @@ export function useReviewState() {
       } finally {
         setLoading(false);
       }
-    },
-    []
+      },
+      []
   );
 
   return {

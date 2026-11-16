@@ -325,8 +325,8 @@ export async function getReviewerPolicy(): Promise<ReviewerPolicy> {
         mode: parsed.mode,
         allowed_account_ids: Array.isArray(parsed.allowed_account_ids)
           ? parsed.allowed_account_ids.filter(
-              (id): id is string => typeof id === 'string'
-            )
+            (id): id is string => typeof id === 'string'
+          )
           : undefined,
       };
     }

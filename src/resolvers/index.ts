@@ -25,6 +25,7 @@ import {
   handleGetAppConfig,
   handleUpdateAppConfig,
   handleRegisterDeployment,
+  handleGetSiteRegistry,
   handleGetAssessmentHistory,
 } from './admin.resolver';
 
@@ -81,6 +82,10 @@ resolver.define('updateAppConfig', async (req) => {
 
 resolver.define('registerDeployment', async (req) => {
   return handleRegisterDeployment(req.payload, req.context);
+});
+
+resolver.define('getSiteRegistry', async (req) => {
+  return handleGetSiteRegistry(req.payload, req.context);
 });
 
 resolver.define('getAssessmentHistory', async (req) => {

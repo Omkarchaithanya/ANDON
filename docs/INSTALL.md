@@ -6,7 +6,7 @@ This guide documents the installation, environment configuration, and deployment
 
 ## 1. Prerequisites & Environment Compatibility
 
-- **Node.js LTS:** Node.js `22.x` (>= `22.23.4`) or `24.x` (>= `24.18.0`). Check with `node --version`.
+- **Node.js LTS:** Forge CLI 15 requires Node.js `^22.23.4` or `^24.22.1` or `>=26.12.1` (Note: `24.18.0` is not accepted by Forge CLI 15). Check with `node --version`.
 - **Package Manager:** `npm` (>= `10.x`). Check with `npm --version`.
 - **Forge CLI:** Installed globally or run via `npx @forge/cli`. Verify with:
   ```powershell

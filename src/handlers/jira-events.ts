@@ -23,28 +23,12 @@ export async function onJiraEvent(event: any, _context?: any): Promise<void> {
     const existingIntents = await repository.getChangeIntentsByJiraIssueId(targetId);
     if (!existingIntents || existingIntents.length === 0) return;
 
-    for (const intent of existingIntents) {
-      // Mark candidate intent as stale upon source ticket modification
-      await repository.updateChangeIntentStatus(intent.id, DiscoveryStatus.STALE);
-
-      await repository.insertAuditLog({
-        action_type: ActionType.ASSESSMENT_MARKED_STALE,
-        entity_type: 'change_intent',
-        entity_id: intent.id,
-        actor_account_id: 'system:jira-event-handler',
-        detail: {
-          reason: 'Source Jira issue was modified. Re-discovery required.',
-          issueKey,
-          issueId,
-        },
-      });
-    }
-
-    // Update tracked source version in local repository
+    // Do not mark candidate intent stale on arbitrary Jira update (comments, status changes).
+    // Set needs_refresh flag; fingerprint will be recomputed when the reviewer next opens the issue.
     await repository.upsertSourceVersion(
       SourceType.JIRA_ISSUE,
       targetId,
-      'modified'
+      'needs_refresh'
     );
   } catch (err: any) {
     console.error('[Jira Events] Error recording source staleness for Jira event:', err);

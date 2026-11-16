@@ -21,12 +21,6 @@ modules:
         function: resolver
       icon: https://developer.atlassian.com/platform/forge/images/icons/issue-panel-icon.svg
 
-  jira:workflowValidator:
-    - key: block-release-on-hold
-      name: Block release while ANDON clearance is HOLD
-      function: block-release-fn
-      errorMessage: "ANDON clearance is HOLD for this issue. Record an override to transition."
-
   sql:
     - key: main
       engine: mysql
@@ -39,8 +33,6 @@ modules:
   function:
     - key: resolver
       handler: index.handler
-    - key: block-release-fn
-      handler: index.blockRelease
     - key: consumer-handler
       handler: index.processQueueEvent
     - key: install-handler
