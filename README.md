@@ -98,46 +98,92 @@ ANDON is engineered with a **zero-egress, fail-closed architecture** executing e
 └────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### End-to-End Dataflow Diagram
+### 🔄 End-to-End Dataflow Architecture
+
+ANDON transitions raw maintenance requests through four strictly isolated, tamper-evident processing stages:
 
 ```mermaid
-sequenceDiagram
-    autonumber
-    actor Facilitator as Facilities Coordinator
-    participant Jira as Jira Issue Panel
-    participant ANDON as ANDON Engine (Forge)
-    participant Graph as Teamwork Graph API
-    participant Conf as Confluence Baseline
-    participant LLM as Forge LLM (Claude)
-    participant SQL as Forge SQL Storage
-    actor Engineer as Robotics Safety Engineer
+flowchart TD
+    subgraph STAGE1["Stage 1: Intake & Teamwork Graph Traversal"]
+        direction TB
+        JiraIssue["📋 Facilities Jira Ticket<br/><i>e.g. 'Apply high-gloss clear finish to Aisle 7'</i>"]
+        TWGraph["🌐 Teamwork Graph Context Engine<br/><i>Site Registry ➔ Zone ➔ Robot Fleet ➔ Baseline</i>"]
+        ConfPage["📑 Confluence Commissioning Spec<br/><i>Versioned Fleet Baseline Specification</i>"]
+        JiraIssue -->|Extract Target Zone| TWGraph
+        TWGraph -->|Traverse Context Path| ConfPage
+    end
 
-    Facilitator->>Jira: Opens Maintenance Issue (e.g. Aisle 7 Resurfacing)
-    Jira->>ANDON: Mounts Custom UI with Issue Context
-    ANDON->>Graph: Traverses Context Path (Site Registry -> Zone -> Deployment)
-    Graph-->>ANDON: Discovers Linked Commissioning Page & Fleet Owner
-    ANDON->>Conf: Fetches Versioned Commissioning Record
-    Conf-->>ANDON: Returns Raw Commissioning Specification
-    ANDON->>LLM: Requests Candidate Attribute Extraction
-    LLM-->>ANDON: Proposes Candidate (e.g. surface_finish -> high_gloss)
-    ANDON->>ANDON: Enforces Exact NFKC Verbatim Substring Grounding
-    ANDON->>SQL: Persists Change Intent (Status: CANDIDATE)
-    
-    Note over Jira,Engineer: Step 1: Change Lens displays Candidate with Zero Mutation
+    subgraph STAGE2["Stage 2: Bounded Semantic Grounding"]
+        direction TB
+        ForgeLLM["🤖 Forge Managed LLM (Claude)<br/><i>Extracts candidate physical condition changes</i>"]
+        QuoteGuard{"🛡️ NFKC Substring Verifier<br/><i>Is quote an exact character-for-character match?</i>"}
+        CandidateIntent["💾 Forge SQL Storage<br/><i>Change Intent recorded (Status: CANDIDATE)</i>"]
+        DropIntent["❌ Dropped Immediately<br/><i>Fails closed on hallucination or paraphrase</i>"]
 
-    Engineer->>Jira: Opens Evidence Redline
-    Jira->>ANDON: Requests Side-by-Side Drafting Comparison
-    ANDON-->>Jira: Renders Jira Quote vs Confluence Clause & Graph Trace
-    Engineer->>ANDON: Executes 3-Seal Verification Ceremony (Confirm / Dismiss)
-    ANDON->>ANDON: Deterministic Set-Membership Evaluation (GAP detected)
-    ANDON->>SQL: Persists Review Decision (PROSPECTIVE_GAP)
-    
-    Note over Jira,Engineer: Step 2: Evidence Redline locks confirmed relationship
+        ConfPage -->|Raw Baseline Text| ForgeLLM
+        JiraIssue -->|Raw Ticket Text| ForgeLLM
+        ForgeLLM -->|Proposed Attribute & Quote| QuoteGuard
+        QuoteGuard -->|Exact Verbatim Match| CandidateIntent
+        QuoteGuard -.->|Unverified Quote| DropIntent
+    end
 
-    Engineer->>Jira: Reviews Review Package & Approves Handoff
-    ANDON->>Jira: Dispatches Approved Follow-up Engineering Task
-    ANDON->>SQL: Persists Deterministic Idempotency Key
-    ANDON-->>Engineer: Confirms Task Created in Engineering Backlog
+    subgraph STAGE3["Stage 3: Evidence Redline & Human Gate"]
+        direction TB
+        RedlineUI["📊 Evidence Redline Drafting Table<br/><i>Side-by-side verbatim quotes + graph trace</i>"]
+        HumanSignoff{"✍️ Three-Seal Human Confirmation<br/><i>1. Location • 2. Deployment • 3. Attribute</i>"}
+        ConfirmedIntent["🔒 Locked Relationship<br/><i>Status: CONFIRMED</i>"]
+        DismissedIntent["📁 Immutable Audit Archive<br/><i>Status: DISMISSED (with audit reason)</i>"]
+
+        CandidateIntent -->|Render Live Diff| RedlineUI
+        RedlineUI --> HumanSignoff
+        HumanSignoff -->|Reviewer Confirms| ConfirmedIntent
+        HumanSignoff -->|Reviewer Dismisses| DismissedIntent
+    end
+
+    subgraph STAGE4["Stage 4: Deterministic Resolution & Dispatch"]
+        direction TB
+        Comparator{"⚙️ Deterministic Comparator<br/><i>Evaluates: proposed_value ∈ declared_baseline</i>"}
+        GapResult["⚠️ Prospective Coverage Gap<br/><i>'Baseline does not establish coverage'</i>"]
+        CoveredResult["✅ Supported Within Scope<br/><i>'Evidence covers proposed condition'</i>"]
+        IdempotentDispatch["🚀 Idempotent Follow-up Dispatcher<br/><i>SHA-256 Key: intent_id :: deployment_id</i>"]
+        FollowUpJira["📌 Engineering Jira Task<br/><i>Approved re-validation work dispatched</i>"]
+
+        ConfirmedIntent --> Comparator
+        Comparator -->|Condition Not Covered| GapResult
+        Comparator -->|Condition Covered| CoveredResult
+        GapResult -->|Reviewer Approves Handoff| IdempotentDispatch
+        IdempotentDispatch -->|Zero Duplicate Guarantee| FollowUpJira
+    end
+
+    STAGE1 ==> STAGE2
+    STAGE2 ==> STAGE3
+    STAGE3 ==> STAGE4
+
+    classDef stage1 fill:#EFF6FF,stroke:#2563EB,stroke-width:2px,color:#1E3A8A;
+    classDef stage2 fill:#FAF5FF,stroke:#7C3AED,stroke-width:2px,color:#581C87;
+    classDef stage3 fill:#FFFBEB,stroke:#D97706,stroke-width:2px,color:#78350F;
+    classDef stage4 fill:#ECFDF5,stroke:#059669,stroke-width:2px,color:#064E3B;
+
+    class STAGE1,JiraIssue,TWGraph,ConfPage stage1;
+    class STAGE2,ForgeLLM,QuoteGuard,CandidateIntent,DropIntent stage2;
+    class STAGE3,RedlineUI,HumanSignoff,ConfirmedIntent,DismissedIntent stage3;
+    class STAGE4,Comparator,GapResult,CoveredResult,IdempotentDispatch,FollowUpJira stage4;
+```
+
+#### Data Transformation Pipeline
+
+```
+ ┌──────────────────┐      ┌────────────────────────┐      ┌────────────────────────┐
+ │ 1. RAW TICKET    │ ───► │ 2. GRAPH CONTEXT PATH  │ ───► │ 3. GROUNDED CANDIDATE  │
+ │ Unlinked issue   │      │ Jira ➔ Site ➔ Fleet    │      │ NFKC substring verified│
+ └──────────────────┘      └────────────────────────┘      └────────────────────────┘
+                                                                        │
+                                                               (Human Gatekeeper)
+                                                                        ▼
+ ┌──────────────────┐      ┌────────────────────────┐      ┌────────────────────────┐
+ │ 6. JIRA TASK     │ ◄─── │ 5. DETERMINISTIC GAP   │ ◄─── │ 4. CONFIRMED TRUTH     │
+ │ Idempotent retry │      │ Set-membership math    │      │ 3-seal reviewer stamp  │
+ └──────────────────┘      └────────────────────────┘      └────────────────────────┘
 ```
 
 ---
