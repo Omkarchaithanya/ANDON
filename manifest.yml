@@ -28,7 +28,7 @@ modules:
   llm:
     - key: andon-extractor
       model:
-        - claude-sonnet-4-6
+        - claude
 
   function:
     - key: resolver
