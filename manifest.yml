@@ -21,6 +21,22 @@ modules:
         function: resolver
       icon: https://developer.atlassian.com/platform/forge/images/icons/issue-panel-icon.svg
 
+  jira:globalPage:
+    - key: andon-global-page
+      title: ANDON Shadow Radar
+      resource: frontend
+      resolver:
+        function: resolver
+      icon: https://developer.atlassian.com/platform/forge/images/icons/issue-panel-icon.svg
+
+  jira:projectPage:
+    - key: andon-project-page
+      title: ANDON Shadow Radar
+      resource: frontend
+      resolver:
+        function: resolver
+      icon: https://developer.atlassian.com/platform/forge/images/icons/issue-panel-icon.svg
+
   sql:
     - key: main
       engine: mysql
