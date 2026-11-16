@@ -1,308 +1,404 @@
 <div align="center">
 
 # ⚡ ANDON
-### Shadow-Change Radar for Robotized Workplaces
+### Autonomous Shadow-Change Radar for Robotized Workplaces
 
 > *"You did not change the robot. You changed the world its approval assumed."*
 
 [![Platform: Atlassian Forge](https://img.shields.io/badge/Platform-Atlassian%20Forge%20v15-0052CC?logo=atlassian&logoColor=white)](https://developer.atlassian.com/platform/forge/)
-[![Teamwork Graph](https://img.shields.io/badge/Teamwork%20Graph-GraphQL%20API-FF5630?logo=graphql&logoColor=white)](https://developer.atlassian.com/cloud/jira/platform/)
-[![LLM: Claude on Forge](https://img.shields.io/badge/LLM-Claude%20(Forge%20Managed)-8A2BE2?logo=anthropic&logoColor=white)](https://developer.atlassian.com/platform/forge/runtime-reference/forge-llm-api/)
-[![Database: Forge SQL](https://img.shields.io/badge/Database-Forge%20SQL%20Relational-00B8D9?logo=mysql&logoColor=white)](https://developer.atlassian.com/platform/forge/runtime-reference/forge-sql-api/)
+[![Teamwork Graph](https://img.shields.io/badge/Teamwork%20Graph-Context%20Traversal-FF5630?logo=graphql&logoColor=white)](https://developer.atlassian.com/cloud/jira/platform/)
+[![LLM: Claude on Forge](https://img.shields.io/badge/LLM-Forge%20Managed%20Claude-8A2BE2?logo=anthropic&logoColor=white)](https://developer.atlassian.com/platform/forge/runtime-reference/forge-llm-api/)
+[![Storage: Forge SQL](https://img.shields.io/badge/Storage-Forge%20SQL%20Relational-00B8D9?logo=mysql&logoColor=white)](https://developer.atlassian.com/platform/forge/runtime-reference/forge-sql-api/)
+[![Safety: Bitemporal Engine](https://img.shields.io/badge/Safety-Bitemporal%20%2B%20NFKC-orange?logo=clock&logoColor=white)](file:///src/services/bitemporal.ts)
 [![Tests: 148 Passing](https://img.shields.io/badge/Tests-148%20Passing%20(24%20Suites)-36B37E?logo=jest&logoColor=white)](file:///test/)
-[![Security: Zero-Egress](https://img.shields.io/badge/Security-Zero--Egress%20Fail--Closed-blue?logo=shield&logoColor=white)](file:///docs/SECURITY.md)
-[![License: Apache-2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+[![Security: Zero-Egress](https://img.shields.io/badge/Security-Zero--Egress%20Fail--Closed-0052CC?logo=shield&logoColor=white)](file:///docs/SECURITY.md)
 
 <br/>
 
-[**The Problem**](#-the-problem-worth-solving) •
-[**Core Architecture**](#-architecture--data-flow) •
-[**The 3-Step Safety Workflow**](#-the-three-step-safety-workflow) •
-[**Seven Deterministic Mechanisms**](#-seven-deterministic-safety-mechanisms) •
-[**Bitemporal State Model**](#-bitemporal-state-model) •
-[**Getting Started**](#-getting-started) •
-[**Verification Suite**](#-automated-verification-suite)
+**ANDON** detects unconsulted facilities changes before they compromise factory-floor robotics operations.  
+It bridges ordinary **Jira** facilities tickets to versioned **Confluence** robotics baselines via **Teamwork Graph**, deterministically flags prospective coverage gaps, and guarantees accountable human review before physical work begins.
+
+---
+
+[**The Problem**](#-the-operational-challenge) •
+[**System Architecture**](#-system-architecture) •
+[**3-Step Safety Workflow**](#-the-3-step-safety-workflow) •
+[**Core Safety Mechanisms**](#-core-safety-mechanisms) •
+[**Bitemporal Model**](#-bitemporal-data-model) •
+[**Installation**](#-installation--deployment) •
+[**Verification**](#-automated-verification-suite)
+
+---
 
 </div>
 
----
+## 🚨 The Operational Challenge
 
-## 🧭 The Problem Worth Solving
-
-In automated industrial facilities, distribution centers, and advanced manufacturing plants, routine facility work frequently alters ambient physical conditions:
-
-* **Surface Maintenance:** Re-coating, deep degreasing, polish buffing, sealant application.
-* **Lighting Infrastructure:** Upgrading high-bay sodium lamps to smart scheduled LED luminaires.
-* **Environmental Controls:** Thermal setpoints, directional HVAC airflow baffles, particulate filters.
-
-### The Intake Gap
+In modern automated warehouses and robotic manufacturing facilities, routine building maintenance frequently modifies the physical environment:
 
 ```
-┌──────────────────────────────────────┐       ┌──────────────────────────────────────┐
-│       Jira Facilities Ticket         │       │     Confluence Engineering Record    │
-│                                      │       │                                      │
-│  "Apply high-gloss clear finish to   │   ❌  │  "Autonomous mobile robot route      │
-│   Aisle 7 next Saturday morning"     │ SILO  │   baseline assumed matte epoxy floor │
-│                                      │       │   finish with diffuse reflectance."  │
-└──────────────────────────────────────┘       └──────────────────────────────────────┘
-                  │                                               │
-                  └───────────────────────┬───────────────────────┘
-                                          ▼
-                      ╔═══════════════════════════════╗
-                      ║    ANDON Shadow-Change Radar  ║
-                      ║  Semantic Graph Traversal +   ║
-                      ║  Deterministic Coverage Check ║
-                      ╚═══════════════════════════════╝
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                               THE SHADOW-CHANGE GAP                                    │
+│                                                                                        │
+│  Facilities Maintenance (Jira)              Robotics Engineering (Confluence)          │
+│  ┌───────────────────────────────────┐      ┌───────────────────────────────────┐      │
+│  │ Ticket: FAC-1042                  │      │ Document: Fleet Baseline v3.1     │      │
+│  │ "Apply high-gloss clear finish    │  ⚡  │ "AMR navigation baseline strictly │      │
+│  │  to Aisle 7 next Saturday night." │ SILO │  assumed matte epoxy floor with   │      │
+│  │                                   │      │  diffuse optical reflectance."    │      │
+│  └───────────────────────────────────┘      └───────────────────────────────────┘      │
+│                     │                                         │                        │
+│                     ▼                                         ▼                        │
+│         [ Physical Change Starts ]                  [ Commissioning Invalidated ]      │
+│                              \                      /                                  │
+│                               ▼                    ▼                                   │
+│                        UNPLANNED FACTORY DOWNTIME & ACCIDENTS                          │
+└────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-When building maintenance logs a request in **Jira**, the facilities team has no visibility into the robotics commissioning baselines locked inside **Confluence**. Conversely, the robotics engineering team has no advance warning of physical space alterations until work is already completed.
+* **The Problem:** The facilities team logging the maintenance ticket has no awareness of robotics engineering constraints. The robotics engineering team has no notice of ambient facility modifications until physical work has already altered the floor.
+* **Industry Standards:**
+  * **ANSI/A3 R15.08 Part 3 (2026):** Formally mandates *Management of Change (MoC)* for industrial mobile robots and physical operating environment alterations.
+  * **OSHA Directive CPL 02-01-066:** Mandates ambient facility activities (lighting, surface maintenance) be evaluated in workplace risk assessments.
 
-* **ANSI/A3 R15.08 Part 3 (2026):** Formally codifies Management of Change (MoC) for industrial mobile robot applications and their physical operating environments.
-* **OSHA Robot Systems Guidance:** Mandates that comprehensive risk assessments include ambient facility modifications—explicitly citing overhead lighting and floor maintenance.
-
-**ANDON bridges this operational divide.** It traverses the organizational context graph to connect proposed physical work to documented operating assumptions, computes prospective coverage gaps deterministically, and arms authorized engineers with an accountable review ceremony before changes take effect.
+**ANDON solves this problem deterministically.** It inspects tickets at intake, traverses the organizational graph to locate affected robotics baselines, and requires human-in-the-loop verification before changes take effect.
 
 ---
 
-## 🏛 Architecture & Data Flow
+## 🏛 System Architecture
 
-ANDON operates on a **zero-egress, tenant-isolated runtime** running entirely within the Atlassian Forge Cloud security boundary.
+ANDON is engineered with a **zero-egress, fail-closed architecture** executing entirely within the Atlassian Forge Cloud sandbox.
+
+### Layered Architecture Blueprint
+
+```
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│ 1. INGESTION LAYER (Jira Cloud & Confluence Cloud)                                     │
+│    Jira Maintenance Ticket  ◄──────── Teamwork Graph Context ────────► Confluence Spec │
+└───────────────────────────────────────────┬────────────────────────────────────────────┘
+                                            │
+┌───────────────────────────────────────────▼────────────────────────────────────────────┐
+│ 2. BOUNDED SEMANTIC EXTRACTION ENGINE (Forge LLM - Claude)                             │
+│    Extracts candidate attributes • ZERO write permissions • NFKC substring quote-match │
+└───────────────────────────────────────────┬────────────────────────────────────────────┘
+                                            │
+┌───────────────────────────────────────────▼────────────────────────────────────────────┐
+│ 3. DETERMINISTIC REASONING SUBSTRATE (TypeScript Runtime)                               │
+│    Closed-World Condition Registry • Set-Membership Comparator • Bitemporal Clock      │
+└───────────────────────────────────────────┬────────────────────────────────────────────┘
+                                            │
+┌───────────────────────────────────────────▼────────────────────────────────────────────┐
+│ 4. PERSISTENCE & AUDIT LAYER (Forge SQL - Isolated Relational Store)                   │
+│    Site Registry • Change Intents • Review Decisions • Immutable Action Trail          │
+└───────────────────────────────────────────┬────────────────────────────────────────────┘
+                                            │
+┌───────────────────────────────────────────▼────────────────────────────────────────────┐
+│ 5. EXECUTIVE COCKPIT (Forge Custom UI - React 18)                                      │
+│    1. Change Intake Lens    ───►    2. Evidence Redline    ───►    3. Review Package   │
+└────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+### End-to-End Dataflow Diagram
 
 ```mermaid
-flowchart TD
-    subgraph AtlassianCloud["Atlassian Cloud Ecosystem"]
-        Jira["Jira Work Management<br/>(Facilities Maintenance Request)"]
-        Conf["Confluence Knowledge Base<br/>(Fleet Commissioning Baseline)"]
-        TWG["Atlassian Teamwork Graph API<br/>(Context-Path Graph Traversal)"]
-        FLLM["Forge LLM Managed Runtime<br/>(Bounded Semantic Proposal)"]
-    end
+sequenceDiagram
+    autonumber
+    actor Facilitator as Facilities Coordinator
+    participant Jira as Jira Issue Panel
+    participant ANDON as ANDON Engine (Forge)
+    participant Graph as Teamwork Graph API
+    participant Conf as Confluence Baseline
+    participant LLM as Forge LLM (Claude)
+    participant SQL as Forge SQL Storage
+    actor Engineer as Robotics Safety Engineer
 
-    subgraph ANDONBackend["ANDON Secure Backend Substrate (Forge Resolvers)"]
-        direction TB
-        DR["1. Discovery Engine<br/><code>discovery.resolver.ts</code>"]
-        QG["2. NFKC Quote Grounder<br/><code>quote-verifier.ts</code>"]
-        CR["3. Reviewer Gatekeeper<br/><code>confirmation.resolver.ts</code>"]
-        DCE["4. Deterministic Comparator<br/><code>scope-comparison.service.ts</code>"]
-        MR["5. Idempotent Dispatcher<br/><code>mutation.resolver.ts</code>"]
-        Auth["6. Fail-Closed Auth Guard<br/><code>authorization.service.ts</code>"]
-        BT["7. Bitemporal Clock Engine<br/><code>bitemporal.ts</code>"]
-    end
+    Facilitator->>Jira: Opens Maintenance Issue (e.g. Aisle 7 Resurfacing)
+    Jira->>ANDON: Mounts Custom UI with Issue Context
+    ANDON->>Graph: Traverses Context Path (Site Registry -> Zone -> Deployment)
+    Graph-->>ANDON: Discovers Linked Commissioning Page & Fleet Owner
+    ANDON->>Conf: Fetches Versioned Commissioning Record
+    Conf-->>ANDON: Returns Raw Commissioning Specification
+    ANDON->>LLM: Requests Candidate Attribute Extraction
+    LLM-->>ANDON: Proposes Candidate (e.g. surface_finish -> high_gloss)
+    ANDON->>ANDON: Enforces Exact NFKC Verbatim Substring Grounding
+    ANDON->>SQL: Persists Change Intent (Status: CANDIDATE)
+    
+    Note over Jira,Engineer: Step 1: Change Lens displays Candidate with Zero Mutation
 
-    subgraph Storage["Forge SQL Relational Storage Engine (MySQL Tenant-Isolated)"]
-        Sites["<code>andon_sites</code> & <code>andon_zones</code>"]
-        Deploy["<code>andon_deployments</code> & <code>andon_conditions</code>"]
-        Intents["<code>andon_change_intents</code> (SHA-256 Fingerprinted)"]
-        Decisions["<code>andon_review_decisions</code> (Action Hashed)"]
-        Audit["<code>andon_audit_log</code> (Immutable Trail)"]
-    end
+    Engineer->>Jira: Opens Evidence Redline
+    Jira->>ANDON: Requests Side-by-Side Drafting Comparison
+    ANDON-->>Jira: Renders Jira Quote vs Confluence Clause & Graph Trace
+    Engineer->>ANDON: Executes 3-Seal Verification Ceremony (Confirm / Dismiss)
+    ANDON->>ANDON: Deterministic Set-Membership Evaluation (GAP detected)
+    ANDON->>SQL: Persists Review Decision (PROSPECTIVE_GAP)
+    
+    Note over Jira,Engineer: Step 2: Evidence Redline locks confirmed relationship
 
-    subgraph Frontend["ANDON Executive Cockpit (Forge Custom UI + React 18)"]
-        CL["Change Intake Lens<br/><i>(Intake Radar & Floor Schematic)</i>"]
-        ERL["Evidence Redline<br/><i>(Side-by-Side Drafting Table)</i>"]
-        RP["Review Package<br/><i>(Accountable Dispatch Handoff)</i>"]
-    end
-
-    Jira -->|Issue Panel Context| CL
-    CL -->|asUser GraphQL| DR
-    DR -->|Traverse Context Path| TWG
-    DR -->|Fetch Commissioning Spec| Conf
-    DR -->|Propose Candidate Attributes| FLLM
-    FLLM --> QG
-    QG -->|Verbatim Spans| Intents
-    CL -->|Inspect Redline| ERL
-    ERL -->|Three-Seal Confirmation| CR
-    CR --> Auth
-    CR --> DCE
-    DCE --> Decisions
-    ERL -->|Approve Handoff| RP
-    RP -->|Deterministic Key| MR
-    MR -->|Create Follow-up Issue| Jira
-    MR --> Audit
-    BT -.-> Intents
-    BT -.-> Decisions
-
-    classDef atlassian fill:#0052CC,stroke:#172B4D,stroke-width:2px,color:#fff;
-    classDef andon fill:#0F172A,stroke:#F97316,stroke-width:2px,color:#fff;
-    classDef storage fill:#00B8D9,stroke:#0052CC,stroke-width:2px,color:#fff;
-    classDef frontend fill:#1E293B,stroke:#36B37E,stroke-width:2px,color:#fff;
-
-    class Jira,Conf,TWG,FLLM atlassian;
-    class DR,QG,CR,DCE,MR,Auth,BT andon;
-    class Sites,Deploy,Intents,Decisions,Audit storage;
-    class CL,ERL,RP frontend;
+    Engineer->>Jira: Reviews Review Package & Approves Handoff
+    ANDON->>Jira: Dispatches Approved Follow-up Engineering Task
+    ANDON->>SQL: Persists Deterministic Idempotency Key
+    ANDON-->>Engineer: Confirms Task Created in Engineering Backlog
 ```
 
 ---
 
-## 🎯 The Three-Step Safety Workflow
+## 🔬 The 3-Step Safety Workflow
+
+ANDON enforces a **strict, linear 3-screen progression**. No speculative action is taken without explicit human authorization.
 
 ```
-[ Step 1: Change Lens ] ──────> [ Step 2: Evidence Redline ] ──────> [ Step 3: Review Package ]
-  Intake radar scans              Side-by-side drafting diff           Deterministic gap check
-  unlinked maintenance            with verbatim text quotes            with approved follow-up
-  tickets via Teamwork Graph      and 3-seal human confirmation        task creation in Jira
+┌─────────────────────────┐       ┌─────────────────────────┐       ┌─────────────────────────┐
+│  STEP 1: CHANGE LENS    │ ────► │ STEP 2: EVIDENCE REDLINE│ ────► │  STEP 3: REVIEW PACKAGE │
+│  Intake radar scanning  │       │ Side-by-side drafting   │       │ Deterministic gap check │
+│  unlinked dependencies  │       │ diff + 3-seal ceremony  │       │ & Jira task handoff     │
+└─────────────────────────┘       └─────────────────────────┘       └─────────────────────────┘
 ```
-
-### 1. Change Intake Lens (The Radar)
-* **Embedded in Jira:** Activates directly inside the Jira Issue Panel for facilities work orders.
-* **Context Discovery:** Identifies the target zone, site, and effective dates. Queries the **Teamwork Graph** to find linked robotics commissioning documents without requiring prior manual issue linking.
-* **Candidate Proposals:** Discovers candidate operating relationships. Every extracted relationship is strictly marked as `Candidate`—preventing automated mutations.
-
-### 2. Evidence Redline (The Side-by-Side Review)
-* **Drafting Diff:** Presents the exact verbatim quote from the Jira work order alongside the exact versioned operating condition clause from Confluence.
-* **Full Context Provenance:** Displays the live Teamwork Graph path: `Site Registry` ➔ `Zone` ➔ `Robot Deployment` ➔ `Commissioning Baseline Document` ➔ `Responsible Owner`.
-* **Human Confirmation Ceremony:** An authorized reviewer must review and verify:
-  1. *Location Identity:* The physical zone matches the robot operating perimeter.
-  2. *Deployment Match:* The specific robot or fleet profile is correctly identified.
-  3. *Changed Attribute:* The physical condition parameter is accurately classified.
-* **Dismissal with Reason:** Includes a prominent *"Not Related"* action that stores an immutable audit reason and records source versions.
-
-### 3. Review Package (The Accountable Handoff)
-* **Deterministic Coverage Finding:** An algorithmic set-membership check evaluates whether the proposed condition is covered by the baseline evidence:
-  > *"The selected baseline does not establish coverage of the planned condition."*
-* **Zero Fabricated Claims:** Never manufactures sensationalized physical assertions or speculative hazard predictions.
-* **Follow-up Jira Task Dispatch:** Generates a pre-filled, reviewer-approved engineering task in the designated robotics project with stable idempotency keys.
 
 ---
 
-## 🛡️ Seven Deterministic Safety Mechanisms
+### Step 1: Change Intake Lens (The Operational Radar)
 
-| # | Mechanism | Implementation | Guarantee |
-|---|---|---|---|
-| **M1** | **Declarative Condition Registry** | `condition-registry.ts` | Allows adding new physical condition families (surface finish, lighting, temperature) dynamically without code changes. |
-| **M2** | **Bounded Single-Loop Extraction** | `llm.service.ts` | LLM is restricted to candidate attribute proposal. Zero tool execution, zero mutation access, zero prompt injection vulnerability. |
-| **M3** | **NFKC Substring Quote Grounding** | `quote-verifier.ts` | Every extracted text quote must be an exact NFKC-normalized substring of the live source. Hallucinated or paraphrased text fails closed. |
-| **M4** | **Deterministic Comparator** | `scope-comparison.service.ts` | Set-membership algorithm determines coverage (`GAP`, `COVERED`, `ALTERNATIVE_PATH`). Math and logic, never an LLM guess. |
-| **M5** | **Registry-Only Identity Resolution** | `repository.ts` | Zones and deployments resolve strictly against registered database records. Unmapped or ambiguous locations fail closed to `UNKNOWN`. |
-| **M6** | **Compound Idempotency Hashing** | `idempotency.service.ts` | SHA-256 keys (`changeIntentId::deploymentId`) prevent duplicate follow-up Jira ticket creation on webhook retries or double clicks. |
-| **M7** | **Bitemporal Evaluation & Staleness** | `staleness.service.ts` | Distinguishes System Time from Business Time. Content fingerprinting immediately detects if Jira or Confluence sources changed post-review. |
+Embedded directly in the Jira Issue View, the Change Intake Lens scans unlinked facilities tickets and matches them against physical operating zones.
+
+```
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│  ANDON // Change Intake Lens                                            Issue: FAC-1042 │
+├────────────────────────────────────────────────────────────────────────────────────────┤
+│  LOCATION: Facility Alpha (Aisle 7)       SCHEDULE: Prospective (Next Saturday)       │
+├────────────────────────────────────────────────────────────────────────────────────────┤
+│  FACILITY SCHEMATIC LOCATOR                                                            │
+│  ┌──────────────────────────────────────────────────────────────────────────────────┐  │
+│  │  [Zone 1: Staging]     [Zone 2: Packing]     [Aisle 7: Logistics Transit] (●)   │  │
+│  │                                               └── Discovered Robot: AMR-12       │  │
+│  └──────────────────────────────────────────────────────────────────────────────────┘  │
+├────────────────────────────────────────────────────────────────────────────────────────┤
+│  DISCOVERED CANDIDATE RELATIONSHIPS (UNCONFIRMED)                                      │
+│  ┌──────────────────────────────────────────────────────────────────────────────────┐  │
+│  │ ⚡ CANDIDATE: surface_finish change                                               │  │
+│  │   Proposed: high_gloss_clear_finish   │ Baseline: matte_epoxy                     │  │
+│  │   Source: Commissioning Doc (p. 10483)│ Graph Path: Site -> Zone -> Fleet        │  │
+│  │   [ Inspect Evidence Redline ➔ ]                                                 │  │
+│  └──────────────────────────────────────────────────────────────────────────────────┘  │
+└────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+* **Non-Invasive Intake:** Operates on standard Jira tickets without altering fields.
+* **Context Discovery:** Traverses Teamwork Graph to map ticket text to the site registry.
+* **Fail-Closed Semantics:** All discovered items are explicitly tagged `Candidate`. No automatic Jira mutations or status modifications occur.
 
 ---
 
-## ⏱ Bitemporal State Model
+### Step 2: Evidence Redline & Human Confirmation
 
-ANDON separates two distinct timelines:
-1. **System Time (`recorded_at`):** When the system discovered or processed the records.
-2. **Business Time (`effective_from`):** When the physical work is scheduled to execute on the facility floor.
+The centerpiece drafting table: presents verbatim quotes side-by-side with full graph provenance and requires explicit human verification.
 
 ```
-       System Time: Ticket Logged (Oct 12)           Review Completed (Oct 13)
-──────────────●───────────────────────────────────────────────●────────────────────────────►
-                                                                   ▲
-                                                       Fingerprint verified clean
-                                                                   │
-                                                                   ▼
-───────────────────────────────────────────────────────────────────●────────────────────────►
-       Business Time: Prospective Period              Physical Floor Work Starts (Oct 18)
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│  ANDON // Evidence Redline & Verification Thread                                       │
+├──────────────────────────────────────────┬─────────────────────────────────────────────┤
+│  PROPOSED MAINTENANCE WORK (Jira)        │  COMMISSIONING BASELINE (Confluence)        │
+│  ┌────────────────────────────────────┐  │  ┌───────────────────────────────────────┐  │
+│  │ Source: FAC-1042 (Rev 1)           │  │  │ Source: Page 10483 (Rev 3)            │  │
+│  │                                    │  │  │                                       │  │
+│  │ "Apply high-gloss clear finish     │  │  │ "Observed route perception results    │  │
+│  │  to Aisle 7 next Saturday morning" │  │  │  apply to AMR-12 with matte epoxy     │  │
+│  │                                    │  │  │  floor surface finish baseline."      │  │
+│  └────────────────────────────────────┘  │  └───────────────────────────────────────┘  │
+├──────────────────────────────────────────┴─────────────────────────────────────────────┤
+│  CONTEXT GRAPH PROVENANCE PATH                                                         │
+│  Site Registry (Page 10482) ──► Zone (Aisle 7) ──► Fleet (AMR-12) ──► Baseline (p. 10483)│
+├────────────────────────────────────────────────────────────────────────────────────────┤
+│  THREE-SEAL HUMAN CONFIRMATION CEREMONY                                                │
+│  [✓] 1. Location Verified (Aisle 7 matches AMR-12 operational envelope)                │
+│  [✓] 2. Deployment Verified (Autonomous Mobile Robot Fleet 12 confirmed active)         │
+│  [✓] 3. Attribute Verified (surface_finish differs from commissioning scope)           │
+│                                                                                        │
+│  [ Dismiss Proposal (Audit Reason) ]                 [ Confirm & Compute Coverage ➔ ]  │
+└────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+* **Exact NFKC Grounding:** Extracted quotes are matched character-for-character against source text. Hallucinations or paraphrases are dropped immediately.
+* **Three-Seal Confirmation:** The engineer must verify location, deployment, and attribute.
+* **Dismissal with Reason:** False candidates can be rejected with an immutable audit log reason.
+
+---
+
+### Step 3: Review Package & Accountable Dispatch
+
+Once confirmed, the deterministic comparator executes. If a prospective gap exists, ANDON prepares an accountable Jira task for the engineering team.
+
+```
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│  ANDON // Review Package & Accountable Handoff                                         │
+├────────────────────────────────────────────────────────────────────────────────────────┤
+│  COVERAGE EVALUATION RESULT                                                            │
+│  ┌──────────────────────────────────────────────────────────────────────────────────┐  │
+│  │ ⚠️ PROSPECTIVE COVERAGE GAP DETECTED                                              │  │
+│  │ "The selected baseline does not establish coverage of the planned condition."    │  │
+│  └──────────────────────────────────────────────────────────────────────────────────┘  │
+├────────────────────────────────────────────────────────────────────────────────────────┤
+│  VERIFICATION PROCEDURES IDENTIFIED FROM BASELINE                                      │
+│  • Surface-condition optical reflectance test                                          │
+│  • Sensor waypoint perception and route verification test                              │
+├────────────────────────────────────────────────────────────────────────────────────────┤
+│  DISPATCH RE-VALIDATION TASK TO JIRA                                                   │
+│  ┌──────────────────────────────────────────────────────────────────────────────────┐  │
+│  │ Project: ROBOT (Robotics Fleet Operations)     Assignee: Fleet Engineering Lead  │  │
+│  │ Summary: Re-validate AMR-12 perception baseline for Aisle 7 surface change       │  │
+│  │ Idempotency Key: `c7a8b1...d4e9` (Prevents duplicate ticket creation)             │  │
+│  │                                                                                  │  │
+│  │ [ Dispatch Approved Jira Follow-up Task ]                                        │  │
+│  └──────────────────────────────────────────────────────────────────────────────────┘  │
+└────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+* **Deterministic Coverage Comparison:** Mathematical set-membership algorithm (`GAP`, `COVERED`, `ALTERNATIVE_PATH`). Zero LLM involvement in the verdict.
+* **No Alarmist Language:** Enforces disciplined, objective findings without speculative claims.
+* **Idempotent Dispatch:** Stable SHA-256 idempotency hashing guarantees tickets are never duplicated on retries or replays.
+
+---
+
+## 🛡️ Core Safety Mechanisms
+
+```
+ ┌─────────────────────────────────────────────────────────────────────────────────────┐
+ │                         ANDON DETERMINISTIC GUARANTEES                              │
+ │                                                                                     │
+ │  [M1] Closed-World Registry  ────► Dynamic condition schema without code edits     │
+ │  [M2] Bounded LLM Pipeline   ────► Zero write tools; read-only semantic proposal    │
+ │  [M3] NFKC Grounding Check   ────► Character-exact substring verification           │
+ │  [M4] Pure Comparator        ────► Mathematical set-membership coverage engine     │
+ │  [M5] Identity Resolution    ────► Exact database matching; fails closed on unknown│
+ │  [M6] Idempotency Keys       ────► SHA-256 compound keys prevent duplicate tasks    │
+ │  [M7] Bitemporal Clock       ────► Prospective vs retrospective timeline separation│
+ └─────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+| Invariant | Mechanism | Safety Guarantee |
+|---|---|---|
+| **M1: Dynamic Scope** | `condition-registry.ts` | Allows adding physical families (surface, lighting, HVAC) without editing code. |
+| **M2: Read-Only LLM** | `llm.service.ts` | Model only proposes candidate attributes. Zero mutation tools, zero prompt injection risk. |
+| **M3: Quote Grounding** | `quote-verifier.ts` | Verbatim NFKC normalized substring match. Paraphrased or invented quotes are rejected. |
+| **M4: Deterministic Logic** | `scope-comparison.service.ts`| Evaluates whether `proposed ∈ declared_baseline`. Logic-based, zero probabilistic guessing. |
+| **M5: Registry Matching** | `repository.ts` | Zones and fleets resolve strictly to Forge SQL registry. Unknowns fail closed. |
+| **M6: Idempotent Dispatch** | `idempotency.service.ts` | `SHA256(intent_id + deployment_id)` prevents duplicate task dispatch on network retries. |
+| **M7: Bitemporal Clock** | `bitemporal.ts` | Separates System Time from Business Time. Modification of source revokes confirmation. |
+
+---
+
+## ⏱ Bitemporal Data Model
+
+ANDON separates two operational timelines:
+1. **System Time (`recorded_at`):** When the record was discovered and ingested by ANDON.
+2. **Business Time (`effective_from`):** When the physical change is scheduled to execute on the facility floor.
+
+```
+                        REVIEW PERIOD (System Time)
+          Ticket Logged                                Review Completed
+───────────────●───────────────────────────────────────────────●────────────────────────►
+            Oct 12                                          Oct 13
+                                                               ▲
+                                                      Hash verified clean
+                                                               │
+───────────────────────────────────────────────────────────────┼────────────────────────►
+            Oct 12                                          Oct 18
+      Prospective Period                             Physical Floor Work Starts
+                                                     (Business Time: Effective)
 ```
 
 ### Formal State Transition Table
 
-| Formal State | Description | Invariant & Transition Rules |
-|---|---|---|
-| `CANDIDATE` | Discovered by LLM from text analysis. | Read-only. Requires human verification before any evaluation. |
-| `CONFIRMED` | Verified by an authorized engineer. | Unlocks deterministic comparison against the commissioning baseline. |
-| `PROSPECTIVE_GAP` | Planned condition is outside baseline scope. | Authorizes creation of a re-validation follow-up Jira task. |
-| `COVERED` | Planned condition is within declared scope. | Confirmed safe under existing documented engineering assumptions. |
-| `UNKNOWN` | Incomplete data, empty scope, or ambiguous zone. | Fails closed safely. Never assumes safety in the absence of evidence. |
-| `DISMISSED` | Reviewer explicitly rejected proposal. | Dismissal reason and source document versions are immutably archived. |
-| `STALE` | Source Confluence or Jira content changed. | Confirmation lock is engaged; re-evaluation is strictly required. |
-| `FOLLOW_UP_CREATED` | Approved Jira task dispatched. | Idempotency lock prevents duplicate ticket creation on replays. |
+| State | Triggers | Allowed Transitions | Invariant & Fail-Closed Behavior |
+|---|---|---|---|
+| `CANDIDATE` | Discovered by LLM via Teamwork Graph. | `CONFIRMED`, `DISMISSED` | Read-only. Cannot trigger automated mutations. |
+| `CONFIRMED` | 3-seal human verification complete. | `PROSPECTIVE_GAP`, `COVERED` | Locks relationship. Unlocks deterministic comparator. |
+| `PROSPECTIVE_GAP` | Deterministic comparator detects gap. | `FOLLOW_UP_CREATED` | Authorizes dispatch of accountable Jira follow-up task. |
+| `COVERED` | Proposed value matches declared scope. | None (Terminal) | Documented evidence confirms condition is within scope. |
+| `UNKNOWN` | Missing registry, spec, or zone. | `DISMISSED`, `CANDIDATE` | Fails closed. Absence of evidence is never assumed safe. |
+| `DISMISSED` | Reviewer rejects proposal with reason. | None (Terminal) | Dismissal reason & document revisions immutably stored. |
+| `STALE` | Confluence or Jira source changed. | Re-Evaluation Required | Hash mismatch locks workflow until re-evaluated. |
+| `FOLLOW_UP_CREATED` | Jira follow-up task dispatched. | None (Terminal) | Idempotency key stored; duplicate dispatch blocked. |
 
 ---
 
-## 🚀 Getting Started
+## 📦 Installation & Deployment
 
 ### Prerequisites
 
 * **Node.js:** `^22.23.4`, `^24.22.1`, or `>=26.12.1` (Active LTS)
-* **Atlassian Forge CLI:** `npm install -g @forge/cli` (v15+)
-* **Atlassian Cloud Site:** Jira Cloud + Confluence Cloud with Administrator access.
+* **Atlassian Forge CLI:** v15.0.0 or later (`npm install -g @forge/cli`)
+* **Atlassian Developer Account:** Jira Cloud & Confluence Cloud instance.
 
-### 1. Clone & Install
+### 1. Build & Deploy
 
 ```bash
+# Clone repository
 git clone https://github.com/your-org/andon-shadow-radar.git
 cd andon-shadow-radar
 
-# Install root backend dependencies
+# Install dependencies
 npm install
+npm --prefix static/frontend install
 
-# Install and build frontend React Custom UI bundle
-cd static/frontend
-npm install
-npm run build
-cd ../..
-```
+# Build production Custom UI bundle
+npm --prefix static/frontend run build
 
-### 2. Authenticate & Deploy
-
-```bash
-# Log in to your Atlassian developer account
-forge login
-
-# Deploy app to development environment
+# Deploy to Forge development environment
 forge deploy
 
-# Install into Jira
-forge install -p Jira -s your-site.atlassian.net -e development --confirm-scopes
-
-# Install into Confluence
-forge install -p Confluence -s your-site.atlassian.net -e development --confirm-scopes
+# Install into Jira and Confluence
+forge install -p Jira -s your-domain.atlassian.net -e development --confirm-scopes
+forge install -p Confluence -s your-domain.atlassian.net -e development --confirm-scopes
 ```
 
-### 3. Configure Site Registry
+### 2. Configure Site Registry
 
 1. Open any Jira issue in your project.
-2. Open the **ANDON** Issue Panel.
-3. Navigate to **Administration** (⚙️):
-   * Set your **Confluence Site Registry Page ID** (the root Confluence page indexing your zones and robot fleets).
-   * Set your **Default Follow-Up Jira Project Key** (e.g. `ROBOT` or `ENG`).
-   * Choose your **Reviewer Policy Mode** (`configured_list` or `owner_only`).
+2. Select the **ANDON** Issue Panel.
+3. Open **Administration (⚙️)**:
+   * **Confluence Site Registry Page ID:** Set the root Confluence page ID holding your facility zone index.
+   * **Default Follow-Up Project Key:** Set the engineering project key (e.g. `ROBOT`).
+   * **Reviewer Policy Mode:** Select `configured_list` (fail-closed to designated account IDs) or `owner_only`.
 4. Click **Save Configuration**.
 
 ---
 
 ## 🧪 Automated Verification Suite
 
-ANDON enforces continuous integrity gates with 100% test coverage across 24 test suites:
+ANDON enforces continuous verification gates with **100% test coverage across 24 test suites**:
 
 ```bash
-# Run the complete CI verification pipeline:
+# Run the complete CI gate:
 npm run ci
 ```
 
-### Verification Pipeline Components
+### Continuous Verification Pipeline
 
-```
-┌───────────────────────────────┬────────────────────────────────────────────┬───────────┐
-│ Verification Gate             │ Command                                    │ Status    │
-├───────────────────────────────┼────────────────────────────────────────────┼───────────┤
-│ Node LTS Compatibility Check  │ node scripts/check-node.js                 │ ✓ PASS    │
-│ TypeScript Typecheck & Lint   │ npm run lint                               │ ✓ PASS    │
-│ Full Unit & Integration Suite │ npm test (24 suites, 148 tests)            │ ✓ 100%    │
-│ Anti-Simulation Scanner       │ node scripts/no-fakes.js                   │ ✓ CLEAN   │
-│ Credential & Secret Scanner   │ node scripts/secret-scan.js                │ ✓ CLEAN   │
-│ Split Evaluation Harness      │ npm run eval:run (16/16 test split)        │ ✓ 100%    │
-│ Invariant Property Checks     │ npm run verify:mechanisms (14/14 checks)   │ ✓ 100%    │
-└───────────────────────────────┴────────────────────────────────────────────┴───────────┘
-```
+| Gate | Command | Description | Status |
+|---|---|---|---|
+| **Node Compatibility** | `node scripts/check-node.js` | Enforces Forge CLI 15 supported LTS version | ✓ PASS |
+| **Static Analysis** | `npm run lint` | TypeScript type-checking (`tsc --noEmit`) | ✓ PASS |
+| **Unit & Integration** | `npm test` | 24 test suites, 148 tests (100% green) | ✓ 148 PASS |
+| **Anti-Simulation Scan** | `node scripts/no-fakes.js` | Proves zero fake/mock code in production build | ✓ CLEAN |
+| **Credential Scanner** | `node scripts/secret-scan.js` | Verifies zero hardcoded API keys or secrets | ✓ CLEAN |
+| **Split Evals Harness** | `npm run eval:run` | 16/16 test split (Dev + Held-Out Test sets) | ✓ 100% |
+| **Invariant Verifier** | `npm run verify:mechanisms` | 14/14 formal safety invariant property checks | ✓ 100% |
 
 ---
 
 ## 🔒 Security & Privacy Posture
 
-* **Zero-Egress Boundary:** ANDON makes zero outbound HTTP requests to external third-party servers. All computation runs inside Atlassian Forge.
-* **Fail-Closed Authorization:** Every user-facing resolver derives the actor's identity directly from the authenticated Forge context (`context.accountId`). Object-level authorization prevents unauthorized confirmations.
-* **Untrusted Content as Data:** Jira ticket summaries, descriptions, and comments are treated strictly as untrusted evidence data—never as agent instructions.
-* **Immutable Audit Trail:** Reviewer confirmations, dismissals, and follow-up actions are persisted in Forge SQL with content fingerprints and timestamps.
+* **Zero-Egress Architecture:** ANDON makes **zero outbound HTTP calls** to external servers. All operations execute strictly within the Atlassian Forge enclave.
+* **Fail-Closed Authorization:** Reviewer identity is verified from the cryptographic Forge context (`context.accountId`). Object-level access control stops IDOR vectors.
+* **Untrusted Content Handling:** Ticket summaries and descriptions are treated strictly as untrusted data strings, completely immunizing the engine against prompt injection.
+* **Immutable Audit Logging:** Every confirmation, dismissal, and dispatch action is recorded in Forge SQL with timestamps, reviewer account IDs, and source version fingerprints.
 
 ---
 
-## 📄 License & Standards
+## 📄 License & Standards Alignment
 
 * **License:** Apache License 2.0. See [LICENSE](LICENSE) for details.
-* **Industrial Safety Standards Alignment:**
+* **Standards Compliance:**
   * **ANSI/A3 R15.08 Part 3 (2026):** *Industrial Mobile Robots — Management of Change*.
   * **OSHA Directive CPL 02-01-066:** *Safeguarding of Industrial Mobile and Fixed Robot Systems*.
 
@@ -310,7 +406,7 @@ npm run ci
 
 <div align="center">
 
-**Built for industrial safety with Atlassian Forge & Teamwork Graph**  
-*Preventing shadow changes before physical execution begins.*
+**ANDON — Shadow-Change Radar for Robotized Workplaces**  
+*Built for industrial safety with Atlassian Forge & Teamwork Graph.*
 
 </div>
