@@ -72,20 +72,26 @@ export async function handleGetDiscoveryContext(payload: any, context: any): Pro
       let deploymentIdentifier: string | null = null;
       let currentValue: string | null = null;
 
+      let zone = null;
       if (intent.zone_id) {
-        const zone = await repository.getZoneById(intent.zone_id);
-        if (zone) {
-          zoneName = zone.name;
-          const deployments = await repository.getDeploymentsByZoneId(zone.id);
-          const activeDep = deployments.find((d) => d.status === 'active') || deployments[0];
-          if (activeDep) {
-            deploymentIdentifier = activeDep.deployment_identifier;
-            if (intent.proposed_attribute) {
-              const conditions = await repository.getConditionsByDeploymentId(activeDep.id);
-              const matchedCond = conditions.find((c) => c.attribute_name === intent.proposed_attribute);
-              if (matchedCond) {
-                currentValue = matchedCond.attribute_value;
-              }
+        zone = await repository.getZoneById(intent.zone_id);
+      }
+      if (!zone && intent.site_id) {
+        const siteZones = await repository.getZonesBySiteId(intent.site_id);
+        zone = siteZones[0] || null;
+      }
+
+      if (zone) {
+        zoneName = zone.name;
+        const deployments = await repository.getDeploymentsByZoneId(zone.id);
+        const activeDep = deployments.find((d) => d.status === 'active') || deployments[0];
+        if (activeDep) {
+          deploymentIdentifier = activeDep.deployment_identifier;
+          if (intent.proposed_attribute) {
+            const conditions = await repository.getConditionsByDeploymentId(activeDep.id);
+            const matchedCond = conditions.find((c) => c.attribute_name === intent.proposed_attribute);
+            if (matchedCond) {
+              currentValue = matchedCond.attribute_value;
             }
           }
         }
@@ -152,7 +158,17 @@ export async function handleGetDiscoveryContext(payload: any, context: any): Pro
 export async function handleRunDiscovery(
   payload: any,
   context: any
-): Promise<{ candidates: ChangeIntent[]; message: string }> {
+): Promise<{
+  status: string;
+  stepReached: string;
+  reason?: string;
+  model: string;
+  extraction: { attribute: string | null; proposedValue: string | null; location: string | null; quote: string | null } | null;
+  quoteVerified: boolean;
+  linkedPageCount: number;
+  coverageResult: string | null;
+  changeIntentId: string | null;
+}> {
   const issueId = context?.extension?.issue?.id || payload?.issueId;
   if (!isNonEmptyString(issueId)) {
     throw new ValidationError('Valid Jira Issue ID is required to run discovery.');
@@ -162,55 +178,55 @@ export async function handleRunDiscovery(
   const issue = await jiraService.getIssue(issueId);
 
   // 1. Retrieve validated enterprise configuration
-  const config = await configService.getValidatedConfig();
-  const siteRegistryPageId = config.siteRegistryPageId;
-
-  // 2. Query Teamwork Graph for linked engineering pages and owners
-  const graphContext = await teamworkGraphService.discoverGraphContext(siteRegistryPageId, context?.cloudId);
-  const linkedPages = graphContext.linked_pages;
-
-  if (!linkedPages || linkedPages.length === 0) {
-    return {
-      candidates: [],
-      message: 'Graph returned nothing. That is not the same as no relationship.',
-    };
+  let siteRegistryPageId: string | null = null;
+  try {
+    const config = await configService.getValidatedConfig();
+    siteRegistryPageId = config.siteRegistryPageId;
+  } catch {
+    // If not configured, brain step CONTEXT reports error
   }
 
-  const preloadedPages = linkedPages.map((p) => ({
-    id: p.page_id,
-    title: p.title || p.page_id,
-  }));
+  // 2. Query Teamwork Graph for linked engineering pages if cloudId and config available
+  let preloadedPages: Array<{ id: string; title: string }> | undefined = undefined;
+  if (siteRegistryPageId && context?.cloudId) {
+    try {
+      const graphContext = await teamworkGraphService.discoverGraphContext(siteRegistryPageId, context.cloudId);
+      if (graphContext.linked_pages && graphContext.linked_pages.length > 0) {
+        preloadedPages = graphContext.linked_pages.map((p) => ({
+          id: p.page_id,
+          title: p.title || p.page_id,
+        }));
+      }
+    } catch {
+      // executeBoundedPipeline handles graph errors
+    }
+  }
 
   const pipelineResult = await executeBoundedPipeline(issue.id, preloadedPages, context?.cloudId);
-
-  if (pipelineResult.status === 'COMPLETED' && pipelineResult.changeIntentId) {
-    const candidate = await repository.getChangeIntentById(pipelineResult.changeIntentId);
-
-    await repository.insertAuditLog({
-      action_type: ActionType.DISCOVERY_RUN,
-      entity_type: 'jira_issue',
-      entity_id: issue.id,
-      actor_account_id: actorAccountId,
-      detail: { candidatesDiscovered: candidate ? 1 : 0 },
-    });
-
-    return {
-      candidates: candidate ? [candidate] : [],
-      message: 'Discovery complete. Identified 1 candidate relationship.',
-    };
-  }
 
   await repository.insertAuditLog({
     action_type: ActionType.DISCOVERY_RUN,
     entity_type: 'jira_issue',
     entity_id: issue.id,
     actor_account_id: actorAccountId,
-    detail: { candidatesDiscovered: 0, reason: pipelineResult.reason },
+    detail: {
+      status: pipelineResult.status,
+      stepReached: pipelineResult.stepReached,
+      reason: pipelineResult.reason,
+      changeIntentId: pipelineResult.changeIntentId,
+    },
   });
 
   return {
-    candidates: [],
-    message: pipelineResult.reason || 'No candidate relationship identified.',
+    status: pipelineResult.status,
+    stepReached: pipelineResult.stepReached,
+    reason: pipelineResult.reason,
+    model: pipelineResult.model,
+    extraction: pipelineResult.extraction,
+    quoteVerified: pipelineResult.quoteVerified,
+    linkedPageCount: pipelineResult.linkedPageCount,
+    coverageResult: pipelineResult.coverageResult,
+    changeIntentId: pipelineResult.changeIntentId,
   };
 }
 

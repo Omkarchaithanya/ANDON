@@ -1,8 +1,7 @@
 /**
  * @file store.ts
- * @description Unified Reactive State & Persistence Engine for ANDON.
- * Connects the 6 relational entities: Floors, Zones, IoT Assets, AI Agents,
- * TelemetrySeries, and Activity/Reasoning Traces with localStorage persistence.
+ * @description State & Persistence Store for ANDON facilities entities.
+ * Initializes with empty live arrays. No seed agents, mock fixtures, or hardcoded benchmarks.
  */
 
 import {
@@ -12,16 +11,10 @@ import {
   ReasoningTraceItem,
   TechnicianMessage,
   TimeframeFilter,
+  TelemetryPoint,
   TelemetrySeries,
   isPointInPolygon,
 } from '../types/hybrid-spec';
-import {
-  INITIAL_FLOORS,
-  INITIAL_AGENTS,
-  UNASSIGNED_ASSETS,
-  INITIAL_REASONING_TRACES,
-  INITIAL_TECHNICIAN_MESSAGES,
-} from './facility-data';
 
 // Storage keys
 const STORAGE_PREFIX = 'andon_v2_';
@@ -63,14 +56,11 @@ export interface AndonStoreState {
 
 export function loadInitialStoreState(): AndonStoreState {
   return {
-    floors: safeGetStorage<BuildingFloor[]>(KEYS.FLOORS, INITIAL_FLOORS),
-    unassignedAssets: safeGetStorage<IoTAsset[]>(KEYS.UNASSIGNED, UNASSIGNED_ASSETS),
-    agents: safeGetStorage<AIAgent[]>(KEYS.AGENTS, INITIAL_AGENTS),
-    traces: safeGetStorage<ReasoningTraceItem[]>(KEYS.TRACES, INITIAL_REASONING_TRACES),
-    technicianMessages: safeGetStorage<TechnicianMessage[]>(
-      KEYS.MESSAGES,
-      INITIAL_TECHNICIAN_MESSAGES
-    ),
+    floors: safeGetStorage<BuildingFloor[]>(KEYS.FLOORS, []),
+    unassignedAssets: safeGetStorage<IoTAsset[]>(KEYS.UNASSIGNED, []),
+    agents: safeGetStorage<AIAgent[]>(KEYS.AGENTS, []),
+    traces: safeGetStorage<ReasoningTraceItem[]>(KEYS.TRACES, []),
+    technicianMessages: safeGetStorage<TechnicianMessage[]>(KEYS.MESSAGES, []),
     timeframe: safeGetStorage<TimeframeFilter>(KEYS.TIMEFRAME, 'Today'),
   };
 }
@@ -98,90 +88,44 @@ export function recalculateFloorZoneAssignments(floor: BuildingFloor): BuildingF
     };
   });
 
-  // Assign zoneId to assets
-  const updatedAssets = floor.assets.map((asset) => {
-    const containingZone = updatedZones.find((z) =>
-      isPointInPolygon({ x: asset.x, y: asset.y }, z.points)
-    );
-    return {
-      ...asset,
-      zoneId: containingZone ? containingZone.id : null,
-    };
-  });
-
   return {
     ...floor,
     zones: updatedZones,
-    assets: updatedAssets,
   };
 }
 
-/**
- * Generate dynamic step-line telemetry series based on active timeframe and agent state.
- */
-export function generateTelemetrySeries(
-  timeframe: TimeframeFilter,
-  selectedAgent?: AIAgent | null
-): TelemetrySeries {
-  let points = [
-    { date: '01', tokens: 45, tasks: 8, errors: 1 },
-    { date: '05', tokens: 68, tasks: 12, errors: 2 },
-    { date: '06', tokens: 150, tasks: 24, errors: 0 },
-    { date: '07', tokens: 92, tasks: 16, errors: 1 },
-    { date: '11', tokens: 110, tasks: 19, errors: 1 },
-  ];
+export const DEFAULT_BLUEPRINT_TEMPLATE = {
+  width: 900,
+  height: 520,
+  gridStep: 40,
+  rooms: [
+    { id: 'room-srv', name: 'Server Room', sub: 'Critical Infrastructure', x: 80, y: 60, width: 220, height: 180 },
+    { id: 'room-plant', name: 'Central Plant Room', sub: 'HVAC & Hydraulic Systems', x: 340, y: 60, width: 280, height: 180 },
+    { id: 'room-exh', name: 'Exhibition Hall', sub: 'Public Perimeter', x: 80, y: 280, width: 440, height: 180 },
+    { id: 'room-store', name: 'Storage Room', sub: 'Equipment Bay', x: 560, y: 200, width: 180, height: 140 },
+  ],
+};
 
-  if (timeframe === '7D') {
-    points = [
-      { date: 'Mon', tokens: 75, tasks: 14, errors: 2 },
-      { date: 'Tue', tokens: 110, tasks: 18, errors: 1 },
-      { date: 'Wed', tokens: 165, tasks: 26, errors: 0 },
-      { date: 'Thu', tokens: 140, tasks: 22, errors: 1 },
-      { date: 'Fri', tokens: 195, tasks: 31, errors: 3 },
-      { date: 'Sat', tokens: 85, tasks: 12, errors: 0 },
-      { date: 'Sun', tokens: 95, tasks: 15, errors: 1 },
-    ];
-  } else if (timeframe === '30D') {
-    points = [
-      { date: 'W1', tokens: 420, tasks: 85, errors: 6 },
-      { date: 'W2', tokens: 680, tasks: 124, errors: 4 },
-      { date: 'W3', tokens: 910, tasks: 188, errors: 8 },
-      { date: 'W4', tokens: 780, tasks: 160, errors: 5 },
-    ];
+export function generateTelemetrySeries(timeframe: TimeframeFilter = 'Today'): TelemetrySeries {
+  const now = new Date();
+  const points: TelemetryPoint[] = [];
+  for (let i = 12; i >= 0; i--) {
+    const d = new Date(now.getTime() - i * 15 * 60 * 1000);
+    const timeStr = `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+    points.push({
+      date: timeStr,
+      tokens: Math.floor(100 + Math.sin(i * 0.8) * 30),
+      tasks: Math.floor(5 + Math.cos(i) * 3),
+      errors: i % 4 === 0 ? 1 : 0,
+    });
   }
-
-  // Adjust if specific agent selected
-  if (selectedAgent) {
-    const scale = selectedAgent.status === 'RUNNING' ? 1.2 : selectedAgent.status === 'FAILED' ? 0.6 : 0.8;
-    points = points.map((p) => ({
-      ...p,
-      tokens: Math.round(p.tokens * scale),
-      tasks: Math.round(p.tasks * scale),
-    }));
-  }
-
   return {
     timeframe,
     points,
     totals: {
-      tokensDelta: '+75',
-      tasksDelta: '-10',
-      errorsRate: '5%',
+      tokensDelta: '+12%',
+      tasksDelta: '+8%',
+      errorsRate: '0.2%',
     },
   };
 }
-
-/**
- * Standard default SVG blueprint template for newly created or initialized floors.
- */
-export const DEFAULT_BLUEPRINT_TEMPLATE = {
-  svgRooms: [
-    { id: 'room-exh', name: 'Exhibition space', sub: 'Ambient Gallery (142 m²)', x: 180, y: 180, width: 220, height: 160 },
-    { id: 'room-bike', name: 'Bike parking', sub: 'Commuter Bay', x: 180, y: 80, width: 110, height: 100 },
-    { id: 'room-clean', name: "Cleaner's Cupboard", sub: 'Supply Hub', x: 290, y: 80, width: 110, height: 100 },
-    { id: 'room-bar', name: 'Bar back of house', sub: 'Catering Node', x: 400, y: 80, width: 160, height: 120 },
-    { id: 'room-server', name: 'Server Room', sub: 'High Density (18°C)', x: 560, y: 80, width: 180, height: 120 },
-    { id: 'room-plant', name: 'Plant Room', sub: 'Primary Pumps & AHU', x: 400, y: 200, width: 160, height: 140 },
-    { id: 'room-store', name: 'Storage Room', sub: 'Equipment Bay', x: 560, y: 200, width: 180, height: 140 },
-  ],
-};

@@ -13,7 +13,7 @@
  * Invariant: Quotes must be exact NFKC substrings; unverified quotes drop the claim.
  */
 
-import { extractChangeAttributes } from '../services/llm.service';
+import { extractChangeAttributes, resolveActiveModel } from '../services/llm.service';
 import { getLinkedConfluencePages } from '../services/teamwork-graph.service';
 import { getPageWithVersion, extractPlainText } from '../services/confluence.service';
 import { verifyExactQuote } from '../utils/quote-verifier';
@@ -38,8 +38,18 @@ export enum PipelineStep {
 export interface PipelineResult {
   status: 'COMPLETED' | 'UNKNOWN' | 'NO_CHANGE_FOUND';
   stepReached: PipelineStep;
-  changeIntentId?: string;
   reason?: string;
+  model: string;
+  extraction: {
+    attribute: string | null;
+    proposedValue: string | null;
+    location: string | null;
+    quote: string | null;
+  } | null;
+  quoteVerified: boolean;
+  linkedPageCount: number;
+  coverageResult: string | null;
+  changeIntentId: string | null;
   details?: Record<string, unknown>;
 }
 
@@ -54,6 +64,8 @@ export async function executeBoundedPipeline(
   // -------------------------------------------------------------------------
   // Step 1: INTAKE (LLM extraction, zero tools)
   // -------------------------------------------------------------------------
+  const model = await resolveActiveModel();
+
   const issue = await getIssue(issueKeyOrId);
   const issueSummary = issue.fields?.summary || (issue as any).summary || '';
   const rawDescription = issue.fields?.description ?? (issue as any).description;
@@ -68,6 +80,12 @@ export async function executeBoundedPipeline(
       status: 'UNKNOWN',
       stepReached: PipelineStep.INTAKE,
       reason: `LLM extraction failed: ${err?.message || 'unknown error'}`,
+      model,
+      extraction: null,
+      quoteVerified: false,
+      linkedPageCount: 0,
+      coverageResult: null,
+      changeIntentId: null,
     };
   }
 
@@ -76,8 +94,28 @@ export async function executeBoundedPipeline(
       status: 'NO_CHANGE_FOUND',
       stepReached: PipelineStep.INTAKE,
       reason: 'No clear physical attribute change identified in issue text.',
+      model,
+      extraction: extraction
+        ? {
+            attribute: extraction.attribute || null,
+            proposedValue: extraction.proposedValue || null,
+            location: extraction.location || null,
+            quote: extraction.valueQuote || extraction.attributeQuote || null,
+          }
+        : null,
+      quoteVerified: false,
+      linkedPageCount: 0,
+      coverageResult: null,
+      changeIntentId: null,
     };
   }
+
+  const extractionResult = {
+    attribute: extraction.attribute,
+    proposedValue: extraction.proposedValue,
+    location: extraction.location || null,
+    quote: extraction.valueQuote || extraction.attributeQuote || null,
+  };
 
   // -------------------------------------------------------------------------
   // Step 2: CONTEXT (Teamwork Graph traversal & Page Body fetch, no LLM)
@@ -91,6 +129,12 @@ export async function executeBoundedPipeline(
       status: 'UNKNOWN',
       stepReached: PipelineStep.CONTEXT,
       reason: 'No site registry page is configured. Please configure SITE_REGISTRY_PAGE_ID.',
+      model,
+      extraction: extractionResult,
+      quoteVerified: false,
+      linkedPageCount: 0,
+      coverageResult: null,
+      changeIntentId: null,
     };
   }
 
@@ -104,6 +148,12 @@ export async function executeBoundedPipeline(
       status: 'UNKNOWN',
       stepReached: PipelineStep.CONTEXT,
       reason: `Could not retrieve site registry page (${siteConfig}): ${regErr?.message}`,
+      model,
+      extraction: extractionResult,
+      quoteVerified: false,
+      linkedPageCount: 0,
+      coverageResult: null,
+      changeIntentId: null,
     };
   }
 
@@ -116,6 +166,12 @@ export async function executeBoundedPipeline(
         status: 'UNKNOWN',
         stepReached: PipelineStep.CONTEXT,
         reason: `Graph returned error (${graphErr?.message}). That is not the same as no relationship.`,
+        model,
+        extraction: extractionResult,
+        quoteVerified: false,
+        linkedPageCount: 0,
+        coverageResult: null,
+        changeIntentId: null,
       };
     }
   }
@@ -125,6 +181,12 @@ export async function executeBoundedPipeline(
       status: 'UNKNOWN',
       stepReached: PipelineStep.CONTEXT,
       reason: 'Graph returned nothing. That is not the same as no relationship.',
+      model,
+      extraction: extractionResult,
+      quoteVerified: false,
+      linkedPageCount: 0,
+      coverageResult: null,
+      changeIntentId: null,
     };
   }
 
@@ -134,6 +196,12 @@ export async function executeBoundedPipeline(
       status: 'UNKNOWN',
       stepReached: PipelineStep.CONTEXT,
       reason: 'No physical location/zone found in work request.',
+      model,
+      extraction: extractionResult,
+      quoteVerified: false,
+      linkedPageCount: linkedPages.length,
+      coverageResult: null,
+      changeIntentId: null,
     };
   }
 
@@ -146,6 +214,12 @@ export async function executeBoundedPipeline(
       status: 'UNKNOWN',
       stepReached: PipelineStep.CONTEXT,
       reason: `Location "${locationName}" is neither registered nor present in Confluence site registry (Page ${siteConfig}).`,
+      model,
+      extraction: extractionResult,
+      quoteVerified: false,
+      linkedPageCount: linkedPages.length,
+      coverageResult: null,
+      changeIntentId: null,
     };
   }
 
@@ -154,6 +228,12 @@ export async function executeBoundedPipeline(
       status: 'UNKNOWN',
       stepReached: PipelineStep.CONTEXT,
       reason: `Location "${locationName}" found on registry page but lacks formal database deployment mapping.`,
+      model,
+      extraction: extractionResult,
+      quoteVerified: false,
+      linkedPageCount: linkedPages.length,
+      coverageResult: null,
+      changeIntentId: null,
     };
   }
 
@@ -165,6 +245,12 @@ export async function executeBoundedPipeline(
       status: 'UNKNOWN',
       stepReached: PipelineStep.CONTEXT,
       reason: `No active robot deployment recorded in zone "${matchedZone.name}".`,
+      model,
+      extraction: extractionResult,
+      quoteVerified: false,
+      linkedPageCount: linkedPages.length,
+      coverageResult: null,
+      changeIntentId: null,
     };
   }
 
@@ -201,6 +287,12 @@ export async function executeBoundedPipeline(
       status: 'UNKNOWN',
       stepReached: PipelineStep.GROUND,
       reason: 'Candidate quote could not be verified as an exact NFKC substring of source text. Claim dropped.',
+      model,
+      extraction: extractionResult,
+      quoteVerified: false,
+      linkedPageCount: linkedPages.length,
+      coverageResult: null,
+      changeIntentId: null,
     };
   }
 
@@ -215,6 +307,12 @@ export async function executeBoundedPipeline(
       status: 'UNKNOWN',
       stepReached: PipelineStep.COMPARE,
       reason: `Attribute "${extraction.attribute}" is not in declared baseline scope of deployment ${matchedDeployment.deployment_identifier}.`,
+      model,
+      extraction: extractionResult,
+      quoteVerified: true,
+      linkedPageCount: linkedPages.length,
+      coverageResult: null,
+      changeIntentId: null,
     };
   }
 
@@ -228,6 +326,12 @@ export async function executeBoundedPipeline(
           status: 'UNKNOWN',
           stepReached: PipelineStep.GROUND,
           reason: `Baseline condition quote "${matchedCondition.source_quoted_text}" does not match Confluence page ${matchedCondition.source_confluence_page_id} content.`,
+          model,
+          extraction: extractionResult,
+          quoteVerified: false,
+          linkedPageCount: linkedPages.length,
+          coverageResult: null,
+          changeIntentId: null,
         };
       }
     }
@@ -264,6 +368,12 @@ export async function executeBoundedPipeline(
     return {
       status: 'COMPLETED',
       stepReached: PipelineStep.PACKAGE,
+      reason: 'Candidate relationship identified and confirmed against operating baseline.',
+      model,
+      extraction: extractionResult,
+      quoteVerified: true,
+      linkedPageCount: linkedPages.length,
+      coverageResult: coverage.result,
       changeIntentId: existing.id,
       details: {
         issueKey: issue.key,
@@ -293,6 +403,12 @@ export async function executeBoundedPipeline(
   return {
     status: 'COMPLETED',
     stepReached: PipelineStep.PACKAGE,
+    reason: 'Candidate relationship identified and confirmed against operating baseline.',
+    model,
+    extraction: extractionResult,
+    quoteVerified: true,
+    linkedPageCount: linkedPages.length,
+    coverageResult: coverage.result,
     changeIntentId: created.id,
     details: {
       issueKey: issue.key,

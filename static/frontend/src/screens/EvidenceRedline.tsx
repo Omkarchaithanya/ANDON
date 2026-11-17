@@ -89,13 +89,17 @@ export const EvidenceRedline: React.FC<EvidenceRedlineProps> = ({
   if (!changeIntentId || !redlineData || !redlineData.changeIntent) {
     return (
       <div className="evidence-redline-view">
-        <div className="redline-top-action-bar">
-          <button className="btn btn-outline-subtle btn-sm" onClick={onBack}>
-            ← Back to Change Intake Lens
+        <div className="empty-state-card andon-card" style={{ textAlign: 'center', padding: '48px 24px', background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: '8px', maxWidth: '520px', margin: '30px auto' }}>
+          <div style={{ fontSize: '32px', marginBottom: '12px' }}>📋</div>
+          <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#111827', marginBottom: '8px' }}>
+            No Candidate Selected
+          </h3>
+          <p style={{ fontSize: '13px', color: '#6B7280', lineHeight: 1.5, marginBottom: '24px' }}>
+            Select an operating-assumption candidate from Change Intake to inspect the evidence redline.
+          </p>
+          <button className="btn btn-primary" onClick={onBack} style={{ background: '#2563EB', color: '#FFFFFF', border: 'none', padding: '8px 18px', borderRadius: '6px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
+            ← Back to Change Intake
           </button>
-        </div>
-        <div className="redline-alert-box alert-error" style={{ marginTop: '20px' }}>
-          <strong>Unknown:</strong> {error || 'No candidate selected or accessible evidence redline found. Relationship cannot be evaluated without accessible source records.'}
         </div>
       </div>
     );

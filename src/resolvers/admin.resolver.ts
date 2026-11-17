@@ -91,9 +91,11 @@ export async function handleGetSiteRegistry(payload: any, context: any): Promise
         baselinePageId: zone.confluence_page_id || undefined,
         baselineVersion: 1,
         sensorRig: 'Standard',
+        conditions: [],
       });
     } else {
       for (const dep of deployments) {
+        const conditions = await repository.getConditionsByDeploymentId(dep.id);
         rows.push({
           zoneName: zone.name,
           zoneType: zone.zone_type || 'General Zone',
@@ -101,6 +103,13 @@ export async function handleGetSiteRegistry(payload: any, context: any): Promise
           baselinePageId: dep.confluence_page_id || undefined,
           baselineVersion: dep.confluence_page_version || 1,
           sensorRig: (dep.metadata as any)?.sensorRig || 'Standard',
+          conditions: conditions.map((c) => ({
+            id: c.id,
+            attributeName: c.attribute_name,
+            attributeValue: c.attribute_value,
+            quotedText: c.source_quoted_text,
+            pageId: c.source_confluence_page_id,
+          })),
         });
       }
     }
@@ -130,7 +139,7 @@ export async function handleRegisterDeployment(payload: any, context: any): Prom
     throw new ValidationError('siteName, zoneName, and deploymentIdentifier are required.');
   }
 
-  // 1. If commissioning page is provided, fetch page and verify quotes verbatim (Item 4)
+  // 1. If commissioning page is provided, fetch page and verify quotes verbatim (Item 5)
   if (confluenceCommissioningPageId) {
     const page = await confluenceService.getPageWithVersion(confluenceCommissioningPageId);
     if (!page || !page.content) {
@@ -141,30 +150,30 @@ export async function handleRegisterDeployment(payload: any, context: any): Prom
       const summaryCheck = verifyExactQuote(page.content, commissioningSummary.trim());
       if (!summaryCheck.verified) {
         throw new ValidationError(
-          `Commissioning summary quote is not a verbatim NFKC substring of Confluence page ${confluenceCommissioningPageId}.`
+          `Commissioning summary quote is not an exact substring of Confluence page ${confluenceCommissioningPageId}.`
         );
       }
     }
 
     for (const cond of conditions) {
-      if (cond.quoted_text && cond.quoted_text.trim()) {
-        const quoteCheck = verifyExactQuote(page.content, cond.quoted_text.trim());
-        if (!quoteCheck.verified) {
-          throw new ValidationError(
-            `Condition quote "${cond.quoted_text}" is not a verbatim substring of Confluence page ${confluenceCommissioningPageId}.`
-          );
-        }
+      if (!cond.quoted_text || !cond.quoted_text.trim()) {
+        throw new ValidationError(
+          `Condition "${cond.attribute_name || 'unnamed'}" must include quoted_text from Confluence page ${confluenceCommissioningPageId}.`
+        );
+      }
+      const quoteCheck = verifyExactQuote(page.content, cond.quoted_text.trim());
+      if (!quoteCheck.verified) {
+        throw new ValidationError(
+          `Condition quote "${cond.quoted_text}" is not an exact substring of Confluence page ${confluenceCommissioningPageId}.`
+        );
       }
     }
   }
 
-  // 2. Upsert Site (do not duplicate sites)
-  let site = null;
-  if (confluenceCommissioningPageId) {
+  // 2. Upsert Site (do not insert a second site with the same name)
+  let site = await repository.getSiteByName(siteName.trim());
+  if (!site && confluenceCommissioningPageId) {
     site = await repository.getSiteByConfluencePageId(confluenceCommissioningPageId);
-  }
-  if (!site) {
-    site = await repository.getSiteByName(siteName.trim());
   }
   if (!site) {
     site = await repository.insertSite({
@@ -270,10 +279,66 @@ export async function handleRegisterDeployment(payload: any, context: any): Prom
 }
 
 /**
- * Returns audit trail history for an entity.
+ * Returns audit trail history for an entity, or review decisions ledger when called with no payload.
+ * When called with no payload, returns { decisions: [...] } from review_decisions, newest first,
+ * with issue key, zone, deployment, coverage, reviewer, and follow-up key.
  */
-export async function handleGetAssessmentHistory(payload: any, context: any): Promise<any> {
+export async function handleGetAssessmentHistory(payload?: any, context?: any): Promise<any> {
   const { entityType, entityId } = payload || {};
-  if (!entityType || !entityId) return [];
-  return repository.getActionLogsByEntity(entityType, entityId);
+  if (entityType && entityId) {
+    return repository.getActionLogsByEntity(entityType, entityId);
+  }
+
+  const allDecisions = await repository.getAllReviewDecisions();
+
+  const formattedDecisions = await Promise.all(
+    allDecisions.map(async (dec) => {
+      let issueKey: string | null = null;
+      let zoneName: string | null = null;
+      let deploymentIdentifier: string | null = null;
+
+      if (dec.change_intent_id) {
+        const intent = await repository.getChangeIntentById(dec.change_intent_id);
+        if (intent) {
+          issueKey = intent.jira_issue_key || null;
+          if (intent.zone_id) {
+            const z = await repository.getZoneById(intent.zone_id);
+            if (z) zoneName = z.name;
+          }
+        }
+      }
+
+      if (dec.deployment_id) {
+        const dep = await repository.getDeploymentById(dec.deployment_id);
+        if (dep) {
+          deploymentIdentifier = dep.deployment_identifier;
+          if (!zoneName && dep.zone_id) {
+            const z = await repository.getZoneById(dep.zone_id);
+            if (z) zoneName = z.name;
+          }
+        }
+      }
+
+      return {
+        id: dec.id,
+        issueKey,
+        workRequestKey: issueKey || '',
+        zone: zoneName,
+        zoneName: zoneName || '',
+        deployment: deploymentIdentifier,
+        deploymentIdentifier: deploymentIdentifier || '',
+        coverage: dec.coverage_result,
+        coverageResult: dec.coverage_result,
+        reviewer: dec.reviewer_account_id,
+        reviewerAccountId: dec.reviewer_account_id,
+        followUpKey: dec.followup_jira_issue_key || null,
+        followupKey: dec.followup_jira_issue_key || null,
+        decisionStatus: dec.review_status,
+        timestamp: dec.created_at,
+        createdAt: dec.created_at,
+      };
+    })
+  );
+
+  return { decisions: formattedDecisions };
 }

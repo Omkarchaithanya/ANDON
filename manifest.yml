@@ -3,10 +3,8 @@ app:
   runtime:
     name: nodejs24.x
   compatibility:
-    jira:
-      required: true
     confluence:
-      required: false
+      required: true
   description: >
     Shadow-change radar for robotized workplaces. Discovers when facilities
     maintenance requests might affect robot deployments whose commissioning

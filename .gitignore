@@ -5,4 +5,8 @@ dist/
 .DS_Store
 *.log
 andon/
+.forge/
+*.zip
+filelist.txt
+
 

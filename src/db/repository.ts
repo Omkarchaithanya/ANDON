@@ -574,6 +574,32 @@ export async function getReviewDecisionById(id: string): Promise<ReviewDecision 
   return dec;
 }
 
+export async function getAllReviewDecisions(): Promise<ReviewDecision[]> {
+  const result = await executeSql(REVIEW_DECISIONS_QUERIES.findAll);
+  return (result.rows || []).map((row: any) => {
+    const dec: ReviewDecision = mapRow(row, [
+      'id',
+      'change_intent_id',
+      'deployment_id',
+      'evidence_revision_id',
+      'coverage_result',
+      'coverage_detail',
+      'reviewer_account_id',
+      'review_status',
+      'followup_jira_issue_id',
+      'followup_jira_issue_key',
+      'followup_creation_status',
+      'followup_idempotency_key',
+      'source_versions_at_review',
+      'created_at',
+      'updated_at',
+    ]);
+    dec.coverage_detail = safeJsonParse(dec.coverage_detail, null);
+    dec.source_versions_at_review = safeJsonParse(dec.source_versions_at_review, null);
+    return dec;
+  });
+}
+
 export async function getReviewDecisionsByChangeIntentId(changeIntentId: string): Promise<ReviewDecision[]> {
   const result = await executeSql(REVIEW_DECISIONS_QUERIES.findByChangeIntentId, [changeIntentId]);
   return (result.rows || []).map((row: any) => {

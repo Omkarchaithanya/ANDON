@@ -366,7 +366,7 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({
 
         {/* User Profile */}
         <div
-          title="George Vaalden (Lead Systems Integrator)"
+          title="Qualified Reviewer"
           style={{
             width: 28,
             height: 28,
@@ -381,7 +381,7 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({
             cursor: 'pointer',
           }}
         >
-          GV
+          QR
         </div>
       </div>
     </header>

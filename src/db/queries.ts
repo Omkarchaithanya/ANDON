@@ -118,6 +118,7 @@ export const CHANGE_INTENTS_QUERIES = {
 
 export const REVIEW_DECISIONS_QUERIES = {
   findById: `SELECT * FROM review_decisions WHERE id = ?`,
+  findAll: `SELECT * FROM review_decisions ORDER BY created_at DESC`,
   findByChangeIntentId: `SELECT * FROM review_decisions WHERE change_intent_id = ?`,
   findByDeploymentId: `SELECT * FROM review_decisions WHERE deployment_id = ?`,
   findByFollowupIdempotencyKey: `SELECT * FROM review_decisions WHERE followup_idempotency_key = ?`,

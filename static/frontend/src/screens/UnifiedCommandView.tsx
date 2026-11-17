@@ -364,7 +364,7 @@ export const UnifiedCommandView: React.FC<UnifiedCommandViewProps> = ({
                 }}
               >
                 <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                  Cost: {idledAgent.costPerRun} / run
+                  State: {idledAgent.status}
                 </span>
                 <div style={{ display: 'flex', gap: 6 }}>
                   {onRunDiagnostic && (
@@ -760,7 +760,7 @@ export const UnifiedCommandView: React.FC<UnifiedCommandViewProps> = ({
                         {agent.responseTime}s
                       </td>
                       <td className="font-mono" style={{ padding: '12px 8px', fontSize: 12, color: 'var(--text-primary)' }}>
-                        {agent.costPerRun}
+                        Standard
                       </td>
                       <td style={{ padding: '12px 8px', textAlign: 'right' }}>
                         <button

@@ -90,6 +90,29 @@ export interface ChangeIntent {
   discoveredAt: string;
   /** Dismissal reason, if dismissed. */
   dismissalReason?: string;
+  /** Explicit joined zone name from Forge SQL. */
+  zoneName?: string;
+  /** Explicit joined deployment identifier from Forge SQL. */
+  deploymentIdentifier?: string;
+  /** Failure or pipeline reason if any field is missing. */
+  pipelineReason?: string;
+}
+
+export interface PipelineTracePayload {
+  status: 'COMPLETED' | 'UNKNOWN' | 'NO_CHANGE_FOUND' | string;
+  stepReached: 'INTAKE' | 'CONTEXT' | 'GROUND' | 'COMPARE' | 'PACKAGE' | string;
+  reason?: string;
+  model: string;
+  extraction: {
+    attribute: string | null;
+    proposedValue: string | null;
+    location: string | null;
+    quote: string | null;
+  } | null;
+  quoteVerified: boolean;
+  linkedPageCount: number;
+  coverageResult: string | null;
+  changeIntentId: string | null;
 }
 
 /**

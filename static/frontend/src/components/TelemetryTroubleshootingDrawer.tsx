@@ -543,7 +543,7 @@ export const TelemetryTroubleshootingDrawer: React.FC<TelemetryTroubleshootingDr
                 type="text"
                 value={messageInput}
                 onChange={(e) => setMessageInput(e.target.value)}
-                placeholder={selectedAsset ? `Message ${selectedAsset.name.split(' ')[0]}...` : 'Message HVAC...'}
+                placeholder={selectedAsset ? `Message ${selectedAsset.name.split(' ')[0]}...` : 'Enter technician message...'}
                 style={{
                   flex: 1,
                   padding: '8px 12px',

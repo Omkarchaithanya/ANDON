@@ -95,22 +95,17 @@ export const ReviewPackage: React.FC<ReviewPackageProps> = ({
   if (!reviewDecisionId || !packageData) {
     return (
       <div className="review-package-view">
-        <div className="redline-top-action-bar">
-          <button className="btn btn-outline-subtle btn-sm" onClick={onBack}>
-            ← Back to Evidence Redline
+        <div className="empty-state-card andon-card" style={{ textAlign: 'center', padding: '48px 24px', background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: '8px', maxWidth: '520px', margin: '30px auto' }}>
+          <div style={{ fontSize: '32px', marginBottom: '12px' }}>📦</div>
+          <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#111827', marginBottom: '8px' }}>
+            No Review Package Selected
+          </h3>
+          <p style={{ fontSize: '13px', color: '#6B7280', lineHeight: 1.5, marginBottom: '24px' }}>
+            Confirm an evidence candidate in Change Intake and Evidence Redline to generate a review package.
+          </p>
+          <button className="btn btn-primary" onClick={onBack} style={{ background: '#2563EB', color: '#FFFFFF', border: 'none', padding: '8px 18px', borderRadius: '6px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
+            ← Back to Change Intake
           </button>
-        </div>
-        <div className="redline-alert-box alert-error" style={{ marginTop: '20px' }}>
-          <p><strong>Unknown:</strong> {error || 'No review package found for this decision. Evaluation requires confirmed candidate and accessible evidence.'}</p>
-          {reviewDecisionId && (
-            <button
-              className="btn btn-outline-subtle btn-sm"
-              style={{ marginTop: '10px' }}
-              onClick={() => loadReviewPackage(reviewDecisionId)}
-            >
-              ↻ Retry Resolver Call
-            </button>
-          )}
         </div>
       </div>
     );

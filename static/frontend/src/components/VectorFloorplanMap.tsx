@@ -11,7 +11,7 @@
  */
 
 import React, { useState, useRef } from 'react';
-import { BuildingFloor, FloorZone, IoTAsset } from '../types/hybrid-spec';
+import { BuildingFloor, FloorZone, IoTAsset, SvgRoomDefinition } from '../types/hybrid-spec';
 import { DEFAULT_BLUEPRINT_TEMPLATE } from '../data/store';
 
 interface VectorFloorplanMapProps {
@@ -215,9 +215,9 @@ export const VectorFloorplanMap: React.FC<VectorFloorplanMapProps> = ({
   };
 
   // Rooms to render: either custom svgRooms or default template rooms
-  const rooms = floor.svgRooms && floor.svgRooms.length > 0
+  const rooms: SvgRoomDefinition[] = floor.svgRooms && floor.svgRooms.length > 0
     ? floor.svgRooms
-    : DEFAULT_BLUEPRINT_TEMPLATE.svgRooms;
+    : DEFAULT_BLUEPRINT_TEMPLATE.rooms;
 
   // Empty Floor State
   if (floor.isEmpty) {

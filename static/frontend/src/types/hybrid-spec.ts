@@ -20,7 +20,6 @@ export interface AIAgent {
   successRate: number; // e.g. 87
   successDelta: number; // e.g. +2.5
   responseTime: number; // e.g. 15.0 (seconds)
-  costPerRun: string; // e.g. "$0.15"
   totalRequests: number; // e.g. 750
   assignedZoneId?: string;
   assignedAssetId?: string;

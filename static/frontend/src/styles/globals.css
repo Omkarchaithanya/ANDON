@@ -9,9 +9,9 @@
 
   /* Color Palette */
   --bg-shell: #0F172A;
-  --bg-body: #F8FAFC;
+  --bg-body: #F4F5F7;
   --bg-card: #FFFFFF;
-  --border-light: #E2E8F0;
+  --border-light: #E5E7EB;
   --border-subtle: #F1F5F9;
 
   --text-main: #0F172A;
@@ -54,7 +54,8 @@ html, body, #root {
 
 .andon-dashboard-shell {
   display: flex;
-  width: 100vw;
+  width: 100%;
+  max-width: 100%;
   height: 100vh;
   overflow: hidden;
   background-color: var(--bg-body);
@@ -428,6 +429,17 @@ html, body, #root {
   color: var(--text-muted);
   cursor: pointer;
   transition: all 0.15s ease;
+  outline: none;
+}
+
+.subheader-tab-btn:focus {
+  outline: none;
+}
+
+.subheader-tab-btn:focus-visible {
+  outline: 2px solid #2563EB;
+  outline-offset: 4px;
+  border-radius: 4px;
 }
 
 .subheader-tab-btn:hover {
@@ -435,8 +447,8 @@ html, body, #root {
 }
 
 .subheader-tab-btn.active {
-  color: var(--orange-primary);
-  border-bottom-color: var(--orange-primary);
+  color: #2563EB;
+  border-bottom-color: #2563EB;
 }
 
 .tab-number-badge {
@@ -453,7 +465,7 @@ html, body, #root {
 }
 
 .subheader-tab-btn.active .tab-number-badge {
-  background-color: var(--orange-primary);
+  background-color: #2563EB;
   color: #FFFFFF;
 }
 
@@ -1711,4 +1723,203 @@ html, body, #root {
 
 .btn-primary:hover {
   background-color: var(--orange-hover);
+}
+
+/* ==========================================================================
+   Responsive Adaptations for Jira Issue Glances, Panels, and Narrow Screens
+   ========================================================================== */
+
+@media (max-width: 1200px) {
+  .andon-dashboard-shell {
+    flex-direction: column;
+    width: 100%;
+    height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* In narrow Jira glance, sidebar takes too much horizontal space.
+     All navigation is provided directly in the subheader tabs! */
+  .andon-sidebar {
+    display: none !important;
+  }
+
+  .andon-main-wrapper {
+    width: 100% !important;
+    min-width: 0 !important;
+    height: 100vh;
+    overflow-y: auto;
+  }
+
+  .andon-topbar {
+    padding: 8px 12px;
+    height: auto;
+    min-height: 44px;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .topbar-search {
+    display: none !important;
+  }
+
+  .topbar-left {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .topbar-dropdown-pill {
+    padding: 4px 8px;
+    font-size: 11px;
+  }
+
+  .topbar-right {
+    margin-left: auto;
+    gap: 6px;
+  }
+
+  .user-name {
+    display: none !important;
+  }
+
+  .user-caret {
+    display: none !important;
+  }
+
+  .andon-subheader {
+    padding: 10px 12px 0 12px;
+    gap: 8px;
+  }
+
+  .subheader-title-row {
+    margin-bottom: 10px;
+    gap: 8px;
+  }
+
+  .subheader-icon-circle {
+    width: 30px;
+    height: 30px;
+  }
+
+  .subheader-title {
+    font-size: 15px;
+  }
+
+  .subheader-subtitle {
+    font-size: 11px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .subheader-tabs-row {
+    flex-wrap: wrap;
+    gap: 4px 10px;
+  }
+
+  .subheader-tab-btn {
+    padding: 6px 4px;
+    font-size: 11px;
+    gap: 6px;
+  }
+
+  .andon-content-body {
+    padding: 12px;
+    overflow-x: hidden;
+  }
+
+  /* Force single-column stack */
+  .andon-grid-2col {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 14px;
+    width: 100% !important;
+  }
+
+  .lens-left-col,
+  .lens-right-col {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .andon-card {
+    padding: 14px 16px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .jira-headline {
+    font-size: 15px;
+    line-height: 1.3;
+    margin: 6px 0 12px 0;
+  }
+
+  .jira-metadata-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px;
+  }
+
+  .stamp-summary-box {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px;
+  }
+
+  .two-clock-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .coverage-formula-box {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .redline-dual-container {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 14px;
+    width: 100% !important;
+  }
+
+  .review-package-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 14px;
+    width: 100% !important;
+  }
+
+  .card-top-row {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .candidate-card-header {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .evidence-header {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .traversal-nodes-chain {
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+  }
+
+  .quick-action-buttons {
+    grid-template-columns: 1fr;
+  }
+
+  .radar-status-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .modal-dialog {
+    width: 95% !important;
+    margin: 10px;
+    padding: 16px;
+  }
 }

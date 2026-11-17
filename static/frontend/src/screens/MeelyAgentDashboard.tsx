@@ -205,7 +205,7 @@ export const MeelyAgentDashboard: React.FC<MeelyAgentDashboardProps> = ({
                       </span>
                     </div>
                     <div style={{ fontSize: 11.5, color: 'var(--text-secondary)', marginTop: 2 }}>
-                      Success rate
+                      Performance
                     </div>
                   </div>
 
@@ -607,7 +607,7 @@ export const MeelyAgentDashboard: React.FC<MeelyAgentDashboardProps> = ({
                     </td>
 
                     <td className="font-mono" style={{ padding: '14px', fontSize: 12.5, color: 'var(--accent-teal)' }}>
-                      {agent.costPerRun}
+                      Standard
                     </td>
 
                     <td style={{ padding: '14px', textAlign: 'right' }}>

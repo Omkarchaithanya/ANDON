@@ -32,7 +32,12 @@ export const PageHeader: React.FC<PageHeaderProps> = ({ currentScreen, onSelectS
             {currentScreen === Screen.ADMINISTRATION && 'System Administration'}
           </h1>
           <p className="subheader-subtitle">
-            Find overlooked robotics dependencies in ordinary facilities work.
+            {currentScreen === Screen.CHANGE_LENS && 'Find overlooked robotics dependencies in ordinary facilities work.'}
+            {currentScreen === Screen.EVIDENCE_REDLINE && 'Compare maintenance proposal against commissioning baseline.'}
+            {currentScreen === Screen.REVIEW_PACKAGE && 'Deterministic coverage evaluation and accountable follow-up dispatch.'}
+            {currentScreen === Screen.DECISION_HISTORY && 'Auditable record of historical safety evaluations.'}
+            {currentScreen === Screen.SITE_REGISTRY && 'Facility zones, active robotic deployments, and baseline parameters.'}
+            {currentScreen === Screen.ADMINISTRATION && 'Configure site registry anchors, reviewer authorization policies, and project routing.'}
           </p>
         </div>
       </div>
@@ -67,6 +72,24 @@ export const PageHeader: React.FC<PageHeaderProps> = ({ currentScreen, onSelectS
         >
           <span className="tab-number-badge">3</span>
           <span className="tab-label">Review Package & Handoff</span>
+        </button>
+
+        <button
+          className={`subheader-tab-btn ${currentScreen === Screen.SITE_REGISTRY ? 'active' : ''}`}
+          onClick={() => onSelectScreen(Screen.SITE_REGISTRY)}
+          role="tab"
+          aria-selected={currentScreen === Screen.SITE_REGISTRY}
+        >
+          <span className="tab-label">🏢 Site Registry</span>
+        </button>
+
+        <button
+          className={`subheader-tab-btn ${currentScreen === Screen.ADMINISTRATION ? 'active' : ''}`}
+          onClick={() => onSelectScreen(Screen.ADMINISTRATION)}
+          role="tab"
+          aria-selected={currentScreen === Screen.ADMINISTRATION}
+        >
+          <span className="tab-label">⚙️ Admin Settings</span>
         </button>
       </div>
     </section>

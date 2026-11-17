@@ -384,7 +384,7 @@ export const FieldTechnicianPWA: React.FC<FieldTechnicianPWAProps> = ({
                 </span>
               </div>
               <span className="font-mono" style={{ fontSize: 11, color: 'var(--accent-cyan-neon)' }}>
-                {assignedAgent.successRate}% Success
+                Active Monitor
               </span>
             </div>
           )}
@@ -574,7 +574,7 @@ export const FieldTechnicianPWA: React.FC<FieldTechnicianPWAProps> = ({
               placeholder={
                 selectedAsset
                   ? `Message ${selectedAsset.name.split(' ')[0]}...`
-                  : 'Message HVAC...'
+                  : 'Enter technician message...'
               }
               style={{
                 flex: 1,
